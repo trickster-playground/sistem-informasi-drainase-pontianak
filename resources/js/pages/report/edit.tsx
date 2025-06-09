@@ -98,20 +98,28 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
 
 
   useEffect(() => {
-    console.log("Point data masuk:", point);
     if (point && point.length > 0) {
       const data = point[0];
       setName(data.name);
       setLocation(data.location);
       setDescription(data.description);
       setCategory(data.category);
-      setKecamatan(data.kecamatan ?? 'Pontianak Kota');
+      setKecamatan(data.kecamatan ?? 'all');
       setMarkerPosition(data.coordinates);
-      if (data.attachments) {
+
+      if (!file && data.attachments) {
         setPreview(data.attachments);
       }
     }
   }, [point]);
+
+  useEffect(() => {
+    return () => {
+      if (preview && preview.startsWith("blob:")) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
 
 
   interface FileChangeEvent extends React.ChangeEvent<HTMLInputElement> {
@@ -173,10 +181,6 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
 
   const [drawType, setDrawType] = useState<'LineString' | 'Polygon' | 'Circle' | 'Point' | null>(null);
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
-
-  // State filter kecamatan, default dari prop backend
-
-
 
   // Inertia form helper untuk submit filter
   const { get } = useForm();
@@ -255,33 +259,50 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
     setCoordinates(null);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      name,
-      kecamatan,
-      location,
-      description,
-      category,
-      file,
-      type: 'Point',
-      coordinates: markerPosition,
-    };
-    console.log("Payload terkirim:", payload);
 
-    router.post('/report/create', payload, {
-      onSuccess: () => {
-        setDrawType(null);
-        setCoordinates(null);
-        setName('');
-        console.log('Berhasil disimpan!');
-      },
-      onError: (errors) => {
-        // Tangani error validasi, dll
-        console.error('Terjadi error:', errors);
-      },
-    });
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('description', description);
+    formData.append('location', location);
+    formData.append('category', category);
+    formData.append('kecamatan', kecamatan);
+    formData.append('type', 'Point');
+    if (markerPosition) {
+      formData.append('coordinates[]', String(markerPosition[0]));
+      formData.append('coordinates[]', String(markerPosition[1]));
+    }
+
+    if (file) {
+      formData.append('file', file);
+    }
+
+    // Tambahkan _method ke formData untuk spoofing PUT
+    formData.append('_method', 'put');
+
+    try {
+      const id = point && point[0]?.id;
+      if (!id) {
+        alert('Data drainase tidak ditemukan.');
+        return;
+      }
+      router.post(`/report/${id}/edit`, formData, {
+        forceFormData: true,
+        onSuccess: () => {
+          console.log('Berhasil disimpan!');
+          // Tampilkan notifikasi sukses jika perlu
+        },
+        onError: (errors) => {
+          console.error('Terjadi error:', errors);
+          // Tampilkan pesan ke user kalau mau
+        },
+      });
+    } catch (error) {
+      console.error("Gagal fetch:", error);
+    }
   };
+
 
   const filteredLines = kecamatan === 'all'
     ? lines

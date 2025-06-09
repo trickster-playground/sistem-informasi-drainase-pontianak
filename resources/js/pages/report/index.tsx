@@ -1,8 +1,10 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import { SharedData, type BreadcrumbItem } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+
+import customIconUser from '/public/assets/icons/marker_user.png';
+import customIconReport from '/public/assets/icons/marker_event.png';
 
 import {
   Table,
@@ -29,6 +31,7 @@ import CreateCirclePane from '@/components/preview/CreateCirclePane';
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import { Button } from '@/components/ui/button';
+import L from 'leaflet';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
 import { SquarePen, Trash } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -80,8 +83,13 @@ type Reports = {
   kecamatan?: {
     nama: string;
   };
+  type: string;
+  coordinates: [number, number]; // [lng, lat]
   kondisi: string;
   updated_at: string;
+  user?: {
+    name: string;
+  };
 };
 
 type ReportsPagination = {
@@ -100,9 +108,27 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
 
   // Fetching reports data from the page props
   const { reports } = usePage<{ reports: ReportsPagination }>().props;
-  console.log('Reports Data:', reports);
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+
+  const isMobile = window.innerWidth < 768;
+  const iconSize: [number, number] = isMobile ? [36, 36] : [48, 48];
+
+  const userIcon = L.icon({
+    iconUrl: customIconUser,
+    iconSize,
+    iconAnchor: [iconSize[0] / 2, iconSize[1]],
+    popupAnchor: [0, -iconSize[1]],
+  });
+
+  const reportIcon = L.icon({
+    iconUrl: customIconReport,
+    iconSize,
+    iconAnchor: [iconSize[0] / 2, iconSize[1]],
+    popupAnchor: [0, -iconSize[1]],
+  });
+
+
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -120,7 +146,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
     }
   }, []);
 
-
   const kecamatanColors: Record<string, string> = {
     'Pontianak Kota': '#FF5733',    // Orange kemerahan
     'Pontianak Utara': '#33C1FF',   // Biru langit cerah
@@ -129,8 +154,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
     'Pontianak Barat': '#FFD700',   // Kuning emas
     'Pontianak Tenggara': '#FF33A6' // Pink terang
   };
-
-
 
   function getColorForKecamatan(nama: string): string {
     return kecamatanColors[nama] || '#3cb44b'; // fallback hitam kalau nama gak ada
@@ -142,6 +165,14 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
   // Inertia form helper untuk submit filter
   const { get } = useForm();
 
+  const filteredLines = kecamatan === 'all'
+    ? lines
+    : lines.filter((line) => line.kecamatan === kecamatan);
+
+  const filteredRawanBanjir = kecamatan === 'all'
+    ? rawanBanjir
+    : rawanBanjir.filter(item => item.kecamatan === kecamatan);
+
   // Data kecamatan unik untuk dropdown (ambil dari lines)
   const kecamatanOptions = Array.from(
     new Set(
@@ -150,10 +181,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
         .filter((kec): kec is string => typeof kec === 'string' && kec.length > 0)
     )
   );
-
-  const filteredLines = kecamatan === 'all'
-    ? lines
-    : lines.filter((line) => line.kecamatan === kecamatan);
 
   // Function to handle deletion of a drainase entry
   const handleDelete = (id: number) => {
@@ -165,11 +192,7 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Report" />
       <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-        <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min">
-
-          <div className="flex  items-start justify-start p-4">
-            <h1 className="text-xl font-bold">Selamat Datang, {auth.user.name} !</h1>
-          </div>
+        <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min p-4">
 
           <div className="flex flex-col lg:flex-row items-center justify-between mx-4 relative z-[999]">
             {/* Dropdown Filter Kecamatan */}
@@ -202,10 +225,29 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
               <CreateCirclePane />
 
               {userLocation && (
-                <Marker position={userLocation} pane="markerPane">
+                <Marker position={userLocation} pane="markerPane" icon={userIcon}>
                   <Popup>Lokasi Anda Saat Ini</Popup>
                 </Marker>
               )}
+
+              {reports.data.map((report) => (
+                <Marker
+                  key={report.id}
+                  position={[report.coordinates[0], report.coordinates[1]]} // [lat, lng]
+                  icon={reportIcon}
+                >
+                  <Popup>
+                    <div>
+                      <strong>{report.title}</strong>
+                      <p>{report.description}</p>
+                      <p><small>{report.location_name}</small></p>
+                      <p>Status: <strong>{report.status}</strong></p>
+                      <p>Kecamatan: {report.kecamatan?.nama || '-'}</p>
+                      <p>Tipe: {report.type}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
 
               {filteredLines.map((line) => {
                 // Pastikan tipe tuple [number, number]
@@ -231,10 +273,10 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                 );
               })}
 
-              {rawanBanjir.map((item) => (
+              {filteredRawanBanjir.map((item) => (
                 <Circle
                   key={item.id}
-                  center={[item.coordinates[1], item.coordinates[0]]} // LatLng = [lat, lng]
+                  center={[item.coordinates[1], item.coordinates[0]]}
                   radius={item.radius}
                   color="red"
                   pane="circlePane"
@@ -285,6 +327,7 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                   <TableRow>
                     <TableHead>No</TableHead>
                     <TableHead>Nama Laporan</TableHead>
+                    <TableHead>Nama Pelapor</TableHead>
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Kategori</TableHead>
                     <TableHead>Deskripsi</TableHead>
@@ -298,6 +341,7 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                     <TableRow key={item.id} className="hover:bg-muted transition-colors cursor-pointer">
                       <TableCell>{(reports.current_page - 1) * 10 + index + 1}</TableCell>
                       <TableCell>{item.title}</TableCell>
+                      <TableCell>{item.user?.name}</TableCell>
                       <TableCell>{item.location_name}</TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
                       <TableCell>{item.description}</TableCell>

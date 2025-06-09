@@ -6,9 +6,12 @@ use App\Models\Drainase;
 use App\Models\Kecamatan;
 use App\Models\RawanBanjir;
 use App\Models\Report;
+use App\Models\User;
+use App\Notifications\NewReportNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 
 class ReportController extends Controller
@@ -43,24 +46,39 @@ class ReportController extends Controller
         'coordinates' => $item->coordinates,
       ];
     });
+    
+    $queryBanjir = RawanBanjir::with('kecamatan');
 
-    $rawanBanjir = RawanBanjir::all()->map(function ($item) {
+    if ($kecamatanFilter) {
+      $queryBanjir->whereHas('kecamatan', function ($q) use ($kecamatanFilter) {
+        $q->where('nama', $kecamatanFilter);
+      });
+    }
+
+    $rawanBanjir = $queryBanjir->get()->map(function ($item) {
       return [
         'id' => $item->id,
         'name' => $item->name,
         'coordinates' => $item->coordinates,
         'radius' => $item->radius,
-        'kecamatan' => $item->kecamatan->name ?? null,
+        'kecamatan' => $item->kecamatan->nama ?? null, // jika relasi
       ];
     });
 
     $user = Auth::user();
 
-    $reports = Report::with(['kecamatan']) // jika ingin memuat relasi
-      ->where('user_id', $user->id)
-      ->latest()
-      ->paginate(10); // atau jumlah lain sesuai kebutuhan
-
+    if ($user->role !== 'Admin') {
+      // Jika bukan admin, filter laporan berdasarkan user
+      $reports = Report::with(['kecamatan', 'user'])
+        ->where('user_id', $user->id)
+        ->latest()
+        ->paginate(10);
+    } else {
+      // Jika admin, ambil semua laporan
+      $reports = Report::with(['kecamatan', 'user'])
+        ->latest()
+        ->paginate(10);
+    }
 
     return Inertia::render('report/index', [
       'lines' => $lines,
@@ -122,7 +140,7 @@ class ReportController extends Controller
       'description' => 'required|string|max:255',
       'location' => 'required|string|max:255',
       'category' => 'required|string|max:255',
-      'kecamatan' => 'nullable|string',
+      'kecamatan' => 'required|string',
       'type' => 'required|string|in:LineString,Polygon,Circle,Point',
       'coordinates' => 'required|array',
       'file' => 'required|file|mimes:jpg,jpeg,png|max:2048', // jika ada file
@@ -144,6 +162,12 @@ class ReportController extends Controller
       'coordinates' => $validated['coordinates'],
       'attachments' => $path,
     ]);
+
+    $admins = User::where('role', 'admin')
+      ->where('id', '!=', $request->user()->id) // kecualikan admin pembuat
+      ->get();
+
+    Notification::send($admins, new NewReportNotification($report));
 
     return redirect()->route('report')->with('success', 'Data Report berhasil ditambahkan.');
   }
@@ -208,6 +232,52 @@ class ReportController extends Controller
       'point' => $point,
     ]);
   }
+
+  public function update(Request $request, $id)
+  {
+
+    $report = Report::findOrFail($id);
+
+    $validated = $request->validate([
+      'name' => 'required|string|max:255',
+      'description' => 'required|string|max:255',
+      'location' => 'required|string|max:255',
+      'category' => 'required|string|max:255',
+      'kecamatan' => 'nullable|string',
+      'type' => 'required|string|in:LineString,Polygon,Circle,Point',
+      'coordinates' => 'required|array',
+      'file' => 'nullable|file|mimes:jpg,jpeg,png|max:2048', // opsional saat update
+    ]);
+
+    $kecamatan = Kecamatan::where('nama', $validated['kecamatan'])->first();
+
+    // Jika ada file baru di-upload
+    if ($request->hasFile('file')) {
+      // Hapus file lama jika ada
+      if ($report->attachments) {
+        Storage::disk('public')->delete($report->attachments);
+      }
+
+      // Simpan file baru
+      $path = $request->file('file')->store('reports', 'public');
+      $report->attachments = $path;
+    }
+
+    // Update data lainnya
+    $report->update([
+      'title' => $validated['name'],
+      'description' => $validated['description'],
+      'location_name' => $validated['location'],
+      'category' => $validated['category'],
+      'kecamatan_id' => $kecamatan?->id,
+      'type' => $validated['type'],
+      'coordinates' => $validated['coordinates'],
+      // 'attachments' sudah ditangani di atas jika ada file baru
+    ]);
+
+    return redirect()->route('report')->with('success', 'Data Report berhasil diperbarui.');
+  }
+
 
   public function destroy(Report $report)
   {

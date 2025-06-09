@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminDrainaseController;
 use App\Http\Controllers\AdminRawanBanjirController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Middleware\AdminMiddleware;
@@ -13,9 +14,7 @@ Route::get('/', [HomeController::class, 'index'])->name('home');
 
 
 Route::middleware(['auth', 'verified'])->group(function () {
-  Route::get('dashboard', function () {
-    return Inertia::render('dashboard');
-  })->name('dashboard');
+  Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
 
@@ -45,6 +44,7 @@ Route::middleware(['auth'])->group(function () {
   Route::get('/report/create', [ReportController::class, 'create'])->name('report.create');
   Route::post('/report/create', [ReportController::class, 'store'])->name('report.store');
   Route::get('/report/{report}/edit', [ReportController::class, 'show'])->name('report.show');
+  Route::put('/report/{report}/edit', [ReportController::class, 'update'])->name('report.update');
   Route::delete('/report/{report}', [ReportController::class, 'destroy'])->name('report.destroy');
 });
 

@@ -104,7 +104,6 @@ export default function Drainase() {
     get('/admin/drainase'); // Akan mengirimkan query string
   };
 
-
   // Function to handle deletion of a drainase entry
   const handleDelete = (id: number) => {
     if (confirm("Yakin ingin menghapus data ini?")) {

@@ -12,12 +12,51 @@ class AdminRawanBanjirController extends Controller
 {
   public function index(Request $request)
   {
-    $rawanBanjir = RawanBanjir::with('kecamatan')
-      ->orderByDesc('created_at') // opsional, agar data terbaru muncul dulu
-      ->paginate(10); // bisa sesuaikan jumlah per halaman
+    $query = RawanBanjir::with('kecamatan')->orderByDesc('created_at');
+
+    // Pencarian berdasarkan keyword
+    if ($request->has('search') && $request->search !== null) {
+      $keyword = $request->search;
+
+      $query->where(function ($q) use ($keyword) {
+        $q->where('name', 'like', "%$keyword%")
+          ->orWhere('kecamatan', 'like', "%$keyword%");
+      });
+    }
+
+    // Filter berdasarkan kecamatan
+    if ($request->has('kecamatan_id') && $request->kecamatan_id !== null) {
+      $query->where('kecamatan_id', $request->kecamatan_id);
+    }
+
+    $rawanBanjir = $query->paginate(10)->withQueryString();
+
+    // Total keseluruhan drainase
+    $totalRawanBanjir = RawanBanjir::count();
+
+    // Kecamatan dengan jumlah drainase terbanyak
+    $rawanBanjirPerKecamatan = RawanBanjir::selectRaw('kecamatan_id, COUNT(*) as total')
+      ->groupBy('kecamatan_id')
+      ->orderByDesc('total')
+      ->with('kecamatan:id,nama') // Eager load nama kecamatan
+      ->get()
+      ->map(function ($item) {
+        return [
+          'id' => $item->kecamatan_id,
+          'nama' => $item->kecamatan->nama ?? 'Tidak diketahui',
+          'total' => $item->total,
+        ];
+      });
+
 
     return Inertia::render('admin/rawan_banjir/index', [
       'rawanBanjir' => $rawanBanjir,
+      'filters' => $request->only(['search', 'kecamatan_id']),
+      'kecamatanOptions' => Kecamatan::select('id', 'nama')->get(),
+      'statistik' => [
+        'total' => $totalRawanBanjir,
+        'rawanBanjirPerKecamatan' => $rawanBanjirPerKecamatan,
+      ],
     ]);
   }
 

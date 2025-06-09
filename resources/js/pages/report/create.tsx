@@ -84,9 +84,6 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
 
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
 
-  console.log("markerPosition:", markerPosition);
-  
-
 
   interface FileChangeEvent extends React.ChangeEvent<HTMLInputElement> {
     target: HTMLInputElement & EventTarget & {
@@ -267,7 +264,7 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
       <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
         <div className="p-4 space-y-4">
           <h1 className="text-xl font-bold">Tambah Data</h1>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               <div className='flex flex-col gap-4'>
                 <div>
@@ -336,7 +333,6 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                     accept="image/*"
                     onChange={handleFileChange}
                     className="border rounded px-3 py-2 w-full cursor-pointer"
-                    
                   />
                 </div>
               </div>
