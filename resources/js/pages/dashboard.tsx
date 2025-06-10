@@ -1,6 +1,6 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
+import { SharedData, type BreadcrumbItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import { Icon } from 'leaflet';
@@ -20,6 +20,7 @@ import {
 import customIconReport from '/public/assets/icons/marker_event.png';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
+
 
 type DashboardProps = {
   totalDrainase: number;
@@ -54,6 +55,8 @@ export default function Dashboard({
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
   });
+  const { auth } = usePage<SharedData>().props;
+  console.log(rawanBanjir)
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
@@ -126,64 +129,99 @@ export default function Dashboard({
             </CardContent>
           </Card>
         </div>
-
-        {/* Laporan terbaru */}
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold mb-4">Laporan Terbaru</h3>
-            <div className="space-y-3">
-              {latestReports.map((report) => (
-                <div key={report.id} className="border-b pb-2">
-                  <p className="font-medium">{report.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {report.kecamatan?.nama} – {report.status} – {report.updated_at}
-                  </p>
+        {auth.user.role === 'Admin' && (
+          <>
+            {/* Laporan terbaru */}
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-4">Laporan Terbaru</h3>
+                <div className="space-y-3">
+                  {latestReports.map((report) => (
+                    <div key={report.id} className="border-b pb-2">
+                      <p className="font-medium">{report.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {report.kecamatan?.nama} – {report.status} – {report.updated_at}
+                      </p>
+                    </div>
+                  ))}
+                  {latestReports.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Belum ada laporan.</p>
+                  )}
                 </div>
-              ))}
-              {latestReports.length === 0 && (
-                <p className="text-sm text-muted-foreground">Belum ada laporan.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Peta */}
-        <Card>
-          <CardContent className="p-4">
-            <h3 className="font-semibold mb-2">Peta Sebaran</h3>
-            <div className="h-[500px] w-full rounded overflow-hidden">
-              <MapContainer center={[-0.0263, 109.3425]} zoom={12} className="h-full w-full" scrollWheelZoom>
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution="&copy; OpenStreetMap contributors"
-                />
-                {/* Marker laporan */}
-                {reportMarkers.map((marker) => (
-                  <Marker
-                    key={`report-${marker.id}`}
-                    position={[marker.coordinates[0], marker.coordinates[1]]}
-                    icon={customIcon}
-                  >
-                    <Popup>
-                      <strong>{marker.title}</strong><br />
-                      Kategori: {marker.category}<br />
-                      Status: {marker.status}
-                    </Popup>
-                  </Marker>
-                ))}
-                {/* Circle rawan banjir */}
-                {rawanBanjir.map((item) => (
-                  <Circle
-                    key={`banjir-${item.id}`}
-                    center={[item.coordinates[0], item.coordinates[1]]}
-                    radius={item.radius}
-                    pathOptions={{ color: 'red', fillOpacity: 0.4 }}
-                  />
-                ))}
-              </MapContainer>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Peta */}
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-2">Peta Sebaran</h3>
+                <div className="h-[500px] w-full rounded overflow-hidden">
+                  <MapContainer center={[-0.0263, 109.3425]} zoom={12} className="h-full w-full" scrollWheelZoom>
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution="&copy; OpenStreetMap contributors"
+                    />
+                    {/* Marker laporan */}
+                    {reportMarkers.map((report) => (
+                      <Marker
+                        key={report.id}
+                        position={[report.coordinates[0], report.coordinates[1]]}
+                        icon={customIcon}
+                      >
+                        <Popup>
+                          <div className="max-w-xs p-3 rounded shadow-md text-sm bg-white text-gray-800 space-y-1">
+                            <h3 className="font-semibold text-base text-blue-600">{report.title}</h3>
+                            <p className="text-gray-700">{report.description}</p>
+
+                            <div className="text-xs text-gray-500 border-t pt-2 mt-2">
+                              <p><span className="font-medium text-gray-700">📍 Lokasi:</span> {report.location_name}</p>
+                              <p><span className="font-medium text-gray-700">📌 Kecamatan:</span> {report.kecamatan?.nama || '-'}</p>
+                              <p><span className="font-medium text-gray-700">🗂️ Kategori:</span> {report.category}</p>
+                              <p>
+                                <span className="font-medium text-gray-700">📊 Status:</span>{' '}
+                                <span className={
+                                  report.status === 'Pending' ? 'text-gray-600 font-semibold' :
+                                    report.status === 'Fixed' ? 'text-green-600 font-semibold' :
+                                      report.status === 'In Progress' ? 'text-yellow-600 font-semibold' :
+                                        report.status === 'Aborted' ? 'text-red-600 font-semibold' :
+                                          'text-gray-600 font-semibold'
+
+                                }>
+                                  {report.status}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    ))}
+                    {/* Circle rawan banjir */}
+                    {rawanBanjir.map((item) => (
+                      <Circle
+                        key={`banjir-${item.id}`}
+                        center={[item.coordinates[1], item.coordinates[0]]}
+                        radius={item.radius}
+                        pathOptions={{ color: 'red', fillOpacity: 0.4 }}
+                      >
+                        <Popup>
+                          <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
+                            <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
+                            <div className="space-y-1">
+                              <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
+                            </div>
+                            <div className="mt-2 text-xs text-red-500 italic">
+                              Area dengan potensi rawan banjir
+                            </div>
+                          </div>
+                        </Popup>
+                      </Circle>
+                    ))}
+                  </MapContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </AppLayout>
   );

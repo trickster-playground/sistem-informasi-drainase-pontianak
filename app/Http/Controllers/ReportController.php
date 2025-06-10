@@ -46,7 +46,7 @@ class ReportController extends Controller
         'coordinates' => $item->coordinates,
       ];
     });
-    
+
     $queryBanjir = RawanBanjir::with('kecamatan');
 
     if ($kecamatanFilter) {
@@ -177,6 +177,11 @@ class ReportController extends Controller
 
     $report = Report::findOrFail($id);
 
+    // Pastikan user yang menghapus adalah pemilik laporan
+    if (Auth::user()->id !== $report->user_id) {
+      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk melihat laporan ini.');
+    }
+
     $point = [
       [
         'id' => $report->id,
@@ -238,6 +243,11 @@ class ReportController extends Controller
 
     $report = Report::findOrFail($id);
 
+    // Pastikan user yang menghapus adalah pemilik laporan
+    if (Auth::user()->id !== $report->user_id) {
+      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk update laporan ini.');
+    }
+
     $validated = $request->validate([
       'name' => 'required|string|max:255',
       'description' => 'required|string|max:255',
@@ -278,7 +288,6 @@ class ReportController extends Controller
     return redirect()->route('report')->with('success', 'Data Report berhasil diperbarui.');
   }
 
-
   public function destroy(Report $report)
   {
     // Pastikan user yang menghapus adalah pemilik laporan
@@ -295,5 +304,94 @@ class ReportController extends Controller
     $report->delete();
 
     return redirect()->route('report')->with('success', 'Laporan berhasil dihapus.');
+  }
+
+  public function detail(Request $request, $id)
+  {
+
+    $report = Report::findOrFail($id);
+
+    // Pastikan user yang menghapus adalah pemilik laporan
+    if (Auth::user()->role !== 'Admin') {
+      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk melihat laporan ini.');
+    }
+
+    $point = [
+      [
+        'id' => $report->id,
+        'name' => $report->title,
+        'type' => $report->type,
+        'description' => $report->description,
+        'category' => $report->category,
+        'location' => $report->location_name,
+        'attachments' => $report->attachments ? Storage::url($report->attachments) : null,
+        'kecamatan' => $report->kecamatan?->nama,
+        'status' => $report->status,
+        'coordinates' => $report->coordinates,
+      ]
+    ];
+
+    $kecamatanFilter = $request->query('kecamatan');
+
+    $query = Drainase::with('kecamatan');
+
+    if ($kecamatanFilter && $kecamatanFilter !== 'all') {
+      $query->whereHas('kecamatan', function ($q) use ($kecamatanFilter) {
+        $q->where('nama', $kecamatanFilter);
+      });
+    }
+
+    $lines = $query->get()->map(function ($item) {
+      return [
+        'id' => $item->id,
+        'name' => $item->name,
+        'type' => $item->type,
+        'coordinates' => $item->coordinates,
+        'fungsi' => $item->fungsi,
+        'kecamatan' => $item->kecamatan->nama ?? null,
+      ];
+    });
+
+    // Ambil semua kecamatan dari database
+    $allKecamatan = Kecamatan::orderBy('nama')->get();
+
+    // Ambil semua batas wilayah dari DB
+    $batasKecamatan = Kecamatan::all()->map(function ($item) {
+      return [
+        'nama' => $item->nama,
+        'type' => $item->type,
+        'coordinates' => $item->coordinates,
+      ];
+    });
+
+    return Inertia::render('report/detail', [
+      'lines' => $lines,
+      'selectedKecamatan' => $kecamatanFilter,
+      'kecamatanList' => $allKecamatan,
+      'batasKecamatan' => $batasKecamatan,
+      'point' => $point,
+    ]);
+  }
+
+  public function updateStatus(Request $request, $id)
+  {
+
+    $report = Report::findOrFail($id);
+
+    // Pastikan user yang menghapus adalah pemilik laporan
+    if (Auth::user()->role !== 'Admin') {
+      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk melihat laporan ini.');
+    }
+
+    $validated = $request->validate([
+      'status' => 'required|string|in:Pending,In Progress,Fixed,Aborted',
+    ]);
+
+    // Update data lainnya
+    $report->update([
+      'status' => $validated['status'],
+    ]);
+
+    return redirect()->route('report')->with('success', 'Data Report berhasil diperbarui.');
   }
 }

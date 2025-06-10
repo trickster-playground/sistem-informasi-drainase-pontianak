@@ -33,7 +33,7 @@ import "leaflet-draw/dist/leaflet.draw.css";
 import { Button } from '@/components/ui/button';
 import L from 'leaflet';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
-import { SquarePen, Trash } from 'lucide-react';
+import { Eye, SquarePen, Trash } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -88,6 +88,7 @@ type Reports = {
   kondisi: string;
   updated_at: string;
   user?: {
+    id: number;
     name: string;
   };
 };
@@ -193,7 +194,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
       <Head title="Report" />
       <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
         <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min p-4">
-
           <div className="flex flex-col lg:flex-row items-center justify-between mx-4 relative z-[999]">
             {/* Dropdown Filter Kecamatan */}
             <KecamatanFilter
@@ -226,31 +226,61 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
 
               {userLocation && (
                 <Marker position={userLocation} pane="markerPane" icon={userIcon}>
-                  <Popup>Lokasi Anda Saat Ini</Popup>
+                  <Popup>
+                    <div className="max-w-xs p-3 rounded shadow text-sm bg-white text-gray-800">
+                      <h3 className="font-semibold text-blue-600 mb-1">📍 Lokasi Anda Saat Ini</h3>
+                      <p className="text-gray-700">
+                        Koordinat:
+                        <br />
+                        <span className="font-mono text-gray-900">
+                          {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
+                        </span>
+                      </p>
+                      <div className="mt-2 text-xs text-gray-500 italic">
+                        Data lokasi diperoleh secara otomatis
+                      </div>
+                    </div>
+                  </Popup>
                 </Marker>
               )}
+
 
               {reports.data.map((report) => (
                 <Marker
                   key={report.id}
-                  position={[report.coordinates[0], report.coordinates[1]]} // [lat, lng]
+                  position={[report.coordinates[0], report.coordinates[1]]}
                   icon={reportIcon}
                 >
                   <Popup>
-                    <div>
-                      <strong>{report.title}</strong>
-                      <p>{report.description}</p>
-                      <p><small>{report.location_name}</small></p>
-                      <p>Status: <strong>{report.status}</strong></p>
-                      <p>Kecamatan: {report.kecamatan?.nama || '-'}</p>
-                      <p>Tipe: {report.type}</p>
+                    <div className="max-w-xs p-3 rounded shadow-md text-sm bg-white text-gray-800 space-y-1">
+                      <h3 className="font-semibold text-base text-blue-600">{report.title}</h3>
+                      <p className="text-gray-700">{report.description}</p>
+
+                      <div className="text-xs text-gray-500 border-t pt-2 mt-2">
+                        <p><span className="font-medium text-gray-700">📍 Lokasi:</span> {report.location_name}</p>
+                        <p><span className="font-medium text-gray-700">📌 Kecamatan:</span> {report.kecamatan?.nama || '-'}</p>
+                        <p><span className="font-medium text-gray-700">🗂️ Kategori:</span> {report.category}</p>
+                        <p>
+                          <span className="font-medium text-gray-700">📊 Status:</span>{' '}
+                          <span className={
+                            report.status === 'Pending' ? 'text-gray-600 font-semibold' :
+                              report.status === 'Fixed' ? 'text-green-600 font-semibold' :
+                                report.status === 'In Progress' ? 'text-yellow-600 font-semibold' :
+                                  report.status === 'Aborted' ? 'text-red-600 font-semibold' :
+                                    'text-gray-600 font-semibold'
+
+                          }>
+                            {report.status}
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </Popup>
                 </Marker>
               ))}
 
+
               {filteredLines.map((line) => {
-                // Pastikan tipe tuple [number, number]
                 const latLngCoordinates: [number, number][] = line.coordinates.map(
                   ([lng, lat]) => [lat, lng]
                 );
@@ -259,19 +289,25 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                   <Polyline
                     key={line.id}
                     positions={latLngCoordinates}
-                    pathOptions={{ color: 'blue', weight: 1.5 }}
+                    pathOptions={{ color: 'blue', weight: 2 }}
                     pane="drainasePane"
                   >
                     <Popup>
-                      <div>
-                        <strong>{line.name}</strong><br />
-                        Fungsi: {line.fungsi}<br />
-                        Kecamatan: {line.kecamatan}
+                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
+                        <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {line.name}</h3>
+                        <div className="space-y-1">
+                          <p><span className="font-medium">Fungsi:</span> {line.fungsi || '-'}</p>
+                          <p><span className="font-medium">Kecamatan:</span> {line.kecamatan || '-'}</p>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 italic">
+                          Jalur drainase yang terdeteksi
+                        </div>
                       </div>
                     </Popup>
                   </Polyline>
                 );
               })}
+
 
               {filteredRawanBanjir.map((item) => (
                 <Circle
@@ -279,11 +315,19 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                   center={[item.coordinates[1], item.coordinates[0]]}
                   radius={item.radius}
                   color="red"
+                  fillOpacity={0.3}
                   pane="circlePane"
                 >
                   <Popup>
-                    <strong>{item.name}</strong><br />
-                    Radius: {item.radius} meter
+                    <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
+                      <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
+                      <div className="space-y-1">
+                        <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
+                      </div>
+                      <div className="mt-2 text-xs text-red-500 italic">
+                        Area dengan potensi rawan banjir
+                      </div>
+                    </div>
                   </Popup>
                 </Circle>
               ))}
@@ -310,11 +354,21 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                     }}
                   >
                     <Popup>
-                      <strong>Kecamatan:</strong> {kec.nama}
+                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-slate-800 text-sm">
+                        <h3 className="text-base font-semibold text-indigo-600 mb-1">📍 Wilayah Kecamatan</h3>
+                        <div className="space-y-1">
+                          <p><span className="font-medium">Nama:</span> {kec.nama}</p>
+                          <p><span className="font-medium">Kode Warna:</span> <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: getColorForKecamatan(kec.nama) }}></span></p>
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500 italic">
+                          Batas administratif wilayah kecamatan
+                        </div>
+                      </div>
                     </Popup>
                   </Polygon>
                 );
               })}
+
 
             </MapContainer>
           </section>
@@ -360,14 +414,26 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                       </TableCell>
                       <TableCell>
                         <div className='flex gap-2 items-center justify-start'>
-                          <Button
-                            onClick={() => router.visit(`/report/${item.id}/edit`)}
-                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
-                            title="Edit"
-                            variant={"outline"}
-                          >
-                            <SquarePen className="w-4 h-4" />
-                          </Button>
+                          {auth.user?.id === item.user?.id && (
+                            <Button
+                              onClick={() => router.visit(`/report/${item.id}/edit`)}
+                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                              title="Edit"
+                              variant={"outline"}
+                            >
+                              <SquarePen className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {auth.user?.role === 'Admin' && (
+                            <Button
+                              onClick={() => router.visit(`/report/${item.id}/detail`)}
+                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-green-500 hover:bg-green-800"
+                              title="Show Detail"
+                              variant={"outline"}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button
                             onClick={() => handleDelete(item.id)}
                             className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"

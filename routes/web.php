@@ -36,6 +36,9 @@ Route::middleware([AdminMiddleware::class])->group(function () {
   Route::get('/admin/rawan-banjir/{rawanbanjir}/edit', [AdminRawanBanjirController::class, 'show'])->name('admin.rawan-banjir.show');
   Route::put('/admin/rawan-banjir/{rawanbanjir}/edit', [AdminRawanBanjirController::class, 'update'])->name('admin.rawan-banjir.update');
   Route::delete('/admin/rawan-banjir/{rawanbanjir}', [AdminRawanBanjirController::class, 'destroy'])->name('admin.rawan-banjir.destroy');
+
+  Route::get('/report/{report}/detail', [ReportController::class, 'detail'])->name('report.detail');
+  Route::put('/report/{report}/detail', [ReportController::class, 'updateStatus'])->name('report.detail.update');
 });
 
 // User Auth Routes

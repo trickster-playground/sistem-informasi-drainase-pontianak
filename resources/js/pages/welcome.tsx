@@ -3,6 +3,9 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from 'react';
 
+import customIconUser from '/public/assets/icons/marker_user.png';
+import L from 'leaflet';
+
 import {
   MapContainer,
   TileLayer,
@@ -18,6 +21,8 @@ import CreateMarkerPane from '@/components/preview/CreateMarkerPane';
 import AppLogo from '@/components/app-logo';
 import CreateCirclePane from '@/components/preview/CreateCirclePane';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 type Line = {
   id: number;
@@ -52,6 +57,11 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
   const { auth } = usePage<SharedData>().props;
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+
+  const [showLines, setShowLines] = useState(true);
+  const [showRawanBanjir, setShowRawanBanjir] = useState(true);
+  const [showKecamatan, setShowKecamatan] = useState(true);
+
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -109,9 +119,19 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
     )
   );
 
+  const isMobile = window.innerWidth < 768;
+  const iconSize: [number, number] = isMobile ? [36, 36] : [48, 48];
+
+  const userIcon = L.icon({
+    iconUrl: customIconUser,
+    iconSize,
+    iconAnchor: [iconSize[0] / 2, iconSize[1]],
+    popupAnchor: [0, -iconSize[1]],
+  });
+
   return (
     <>
-      <Head title="Welcome">
+      <Head title="Peta Drainase & Banjir Kota Pontianak">
         <link rel="preconnect" href="https://fonts.bunny.net" />
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
       </Head>
@@ -159,20 +179,35 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
             </div>
           </div>
         </nav>
-
+        {/* Hero */}
+        <header className="container mx-auto px-6 mt-8 text-center">
+          <h1 className="text-4xl font-bold mb-4">Peta Drainase & Rawan Banjir Pontianak</h1>
+          <p className="text-lg text-gray-600 dark:text-gray-300">
+            Jelajahi sebaran drainase dan area rawan banjir di kota. Gunakan data ini untuk perencanaan, pelaporan, dan edukasi.
+          </p>
+        </header>
         {/* Main Content */}
-        <main className="flex flex-1 flex-col items-center justify-center px-6 lg:px-8 ">
-          {/* Teks */}
-          <div className="w-full max-w-4xl text-center">
-            <h1 className="text-3xl font-bold mb-4">Peta Sebaran Drainase di Kota Pontianak</h1>
-          </div>
-
+        <main className="flex flex-1 flex-col px-6 lg:px-28 mt-5 ">
           {/* Dropdown Filter Kecamatan */}
-          <KecamatanFilter
-            value={kecamatan}
-            options={kecamatanOptions}
-            onChange={(val) => setKecamatan(val)}
-          />
+          <div className='flex justify-center items-center gap-4'>
+            <KecamatanFilter
+              value={kecamatan}
+              options={kecamatanOptions}
+              onChange={(val) => setKecamatan(val)}
+            />
+            <div className='flex justify-center items-center gap-2 mb-5'>
+              <Checkbox id="showDrainase" checked={showLines} onCheckedChange={() => setShowLines(!showLines)} />
+              <Label htmlFor="showDrainase">Tampilkan jalur Drainase.</Label>
+            </div>
+            <div className='flex justify-center items-center gap-2 mb-5'>
+              <Checkbox id="showRawanBanjir" checked={showRawanBanjir} onCheckedChange={() => setShowRawanBanjir(!showRawanBanjir)} />
+              <Label htmlFor="showRawanBanjir">Tampilkan Daerah Rawan Banjir.</Label>
+            </div>
+            <div className='flex justify-center items-center gap-2 mb-5'>
+              <Checkbox id="showKecamatan" checked={showKecamatan} onCheckedChange={() => setShowKecamatan(!showKecamatan)} />
+              <Label htmlFor="showKecamatan">Tampilkan Batas Kecamatan.</Label>
+            </div>
+          </div>
 
           {/* Map Leaflet*/}
           <section className="w-full h-[600px] mb-8 px-5 z-0">
@@ -193,12 +228,26 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
               <CreateCirclePane />
 
               {userLocation && (
-                <Marker position={userLocation} pane="markerPane">
-                  <Popup>Lokasi Anda Saat Ini</Popup>
+                <Marker position={userLocation} pane="markerPane" icon={userIcon}>
+                  <Popup>
+                    <div className="max-w-xs p-3 rounded shadow text-sm bg-white text-gray-800">
+                      <h3 className="font-semibold text-blue-600 mb-1">📍 Lokasi Anda Saat Ini</h3>
+                      <p className="text-gray-700">
+                        Koordinat:
+                        <br />
+                        <span className="font-mono text-gray-900">
+                          {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
+                        </span>
+                      </p>
+                      <div className="mt-2 text-xs text-gray-500 italic">
+                        Data lokasi diperoleh secara otomatis
+                      </div>
+                    </div>
+                  </Popup>
                 </Marker>
               )}
 
-              {filteredLines.map((line) => {
+              {showLines && filteredLines.map((line) => {
                 const latLngCoordinates: [number, number][] = line.coordinates.map(
                   ([lng, lat]) => [lat, lng]
                 );
@@ -207,14 +256,19 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                   <Polyline
                     key={line.id}
                     positions={latLngCoordinates}
-                    pathOptions={{ color: 'blue', weight: 1.5 }}
+                    pathOptions={{ color: 'blue', weight: 2 }}
                     pane="drainasePane"
                   >
                     <Popup>
-                      <div>
-                        <strong>{line.name}</strong><br />
-                        Fungsi: {line.fungsi}<br />
-                        Kecamatan: {line.kecamatan}
+                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
+                        <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {line.name}</h3>
+                        <div className="space-y-1">
+                          <p><span className="font-medium">Fungsi:</span> {line.fungsi || '-'}</p>
+                          <p><span className="font-medium">Kecamatan:</span> {line.kecamatan || '-'}</p>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 italic">
+                          Jalur drainase yang terdeteksi
+                        </div>
                       </div>
                     </Popup>
                   </Polyline>
@@ -222,23 +276,31 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
               })}
 
 
-              {filteredRawanBanjir.map((item) => (
+              {showRawanBanjir && filteredRawanBanjir.map((item) => (
                 <Circle
                   key={item.id}
                   center={[item.coordinates[1], item.coordinates[0]]}
                   radius={item.radius}
                   color="red"
+                  fillOpacity={0.3}
                   pane="circlePane"
                 >
                   <Popup>
-                    <strong>{item.name}</strong><br />
-                    Radius: {item.radius} meter
+                    <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
+                      <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
+                      <div className="space-y-1">
+                        <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
+                      </div>
+                      <div className="mt-2 text-xs text-red-500 italic">
+                        Area dengan potensi rawan banjir
+                      </div>
+                    </div>
                   </Popup>
                 </Circle>
               ))}
 
 
-              {batasKecamatan.map((kec) => {
+              {showKecamatan && batasKecamatan.map((kec) => {
                 if (!Array.isArray(kec.coordinates) || !Array.isArray(kec.coordinates[0])) {
                   return null;
                 }
@@ -259,7 +321,16 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                     }}
                   >
                     <Popup>
-                      <strong>Kecamatan:</strong> {kec.nama}
+                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-slate-800 text-sm">
+                        <h3 className="text-base font-semibold text-indigo-600 mb-1">📍 Wilayah Kecamatan</h3>
+                        <div className="space-y-1">
+                          <p><span className="font-medium">Nama:</span> {kec.nama}</p>
+                          <p><span className="font-medium">Kode Warna:</span> <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: getColorForKecamatan(kec.nama) }}></span></p>
+                        </div>
+                        <div className="mt-2 text-xs text-slate-500 italic">
+                          Batas administratif wilayah kecamatan
+                        </div>
+                      </div>
                     </Popup>
                   </Polygon>
                 );
@@ -270,6 +341,16 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
 
         </main>
 
+        {/* About Section */}
+        <section className="container mx-auto px-6 py-16 bg-gray-50 dark:bg-gray-800">
+          <h2 className="text-3xl font-bold mb-4">Tentang Aplikasi</h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-4">
+            Aplikasi ini bertujuan untuk membantu masyarakat Pontianak memahami sebaran drainase serta mengidentifikasi area rawan banjir. Data dikumpulkan dari berbagai sumber dan ditampilkan di peta interaktif agar mudah diakses oleh publik, pemerintah, dan peneliti.
+          </p>
+          <p className="text-gray-700 dark:text-gray-300">
+            Dikembangkan dengan teknologi modern seperti LeafletJS, React, dan InertiaJS, aplikasi ini berfokus pada antarmuka ringan, responsif, dan mudah digunakan pada berbagai perangkat.
+          </p>
+        </section>
 
         <div className="hidden h-14.5 lg:block" />
       </div>
