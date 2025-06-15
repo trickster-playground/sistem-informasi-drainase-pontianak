@@ -35,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
             'id' => $n->id,
             'title' => $n->data['title'] ?? 'Notification',
             'body' => $n->data['created_by'] ?? '',
+            'report_id' => $n->data['report_id'] ?? '',
             'read_at' => $n->read_at,
             'created_at' => $n->created_at->diffForHumans(),
           ]);

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jun 10, 2025 at 01:51 PM
+-- Generation Time: Jun 15, 2025 at 07:54 AM
 -- Server version: 9.2.0
 -- PHP Version: 8.4.4
 
@@ -2113,8 +2113,7 @@ INSERT INTO `drainase` (`id`, `name`, `fungsi`, `panjang`, `kecamatan_id`, `type
 (2006, 'Parit Nenas', 'Primer', 4572.01, 4, 'LineString', '[[109.3638590196848, -0.015424767518401142], [109.36415306075229, -0.01320107768795688], [109.36428636880096, -0.012107951688827005], [109.36415306075229, -0.011867997201218169], [109.3642358167552, -0.01116139166962531]]', '{\"ID\": 0, \"NO\": 102, \"NAME\": \"Parit Nenas\", \"pnjg\": 4572.011993, \"BIAYA\": 0, \"JENIS\": \"\", \"LEBAR\": 0, \"FUNGSI\": \"Primer\", \"GAMBAR\": \"\", \"PROYEK\": \"\", \"SUMBER\": \"\", \"PANJANG\": 0, \"Pjg_d_m\": 478.910571, \"Rencana\": \"Pembangunan Turap Beton\", \"Pjg_d_km\": 0.478911, \"Rencana2\": \"Normalisasi Saluran\", \"KECAMATAN\": \"Pontianak Utara\", \"KONTRUKSI\": \"Barau Belian\", \"PEKERJAAN\": \"Peningkatan\", \"Konstruksi\": \"Tanah\", \"NORMALISAS\": 0, \"P_LIHARAAN\": 2002, \"P_NINGKATA\": 0}', '2025-06-07 00:52:02', '2025-06-07 00:52:02'),
 (2007, 'Parit Nenas', 'Primer', 4572.01, 4, 'LineString', '[[109.3642358167552, -0.01116139166962531], [109.36433331500903, -0.010328907853970405]]', '{\"ID\": 0, \"NO\": 102, \"NAME\": \"Parit Nenas\", \"pnjg\": 4572.011993, \"BIAYA\": 0, \"JENIS\": \"\", \"LEBAR\": 0, \"FUNGSI\": \"Primer\", \"GAMBAR\": \"\", \"PROYEK\": \"\", \"SUMBER\": \"\", \"PANJANG\": 0, \"Pjg_d_m\": 92.689882, \"Rencana\": \"Normalisasi Saluran\", \"Pjg_d_km\": 0.09269, \"Rencana2\": \"Normalisasi Saluran\", \"KECAMATAN\": \"Pontianak Utara\", \"KONTRUKSI\": \"Barau Belian\", \"PEKERJAAN\": \"Peningkatan\", \"Konstruksi\": \"Beton Bertulang\", \"NORMALISAS\": 0, \"P_LIHARAAN\": 2002, \"P_NINGKATA\": 0}', '2025-06-07 00:52:02', '2025-06-07 00:52:02'),
 (2008, 'Parit Nenas', 'Primer', 4572.01, 4, 'LineString', '[[109.36433331500903, -0.010328907853970405], [109.36449966167882, -0.008908558520625599], [109.3650062322638, -0.004722685792239112], [109.3652140233462, -0.0034672863733823194]]', '{\"ID\": 0, \"NO\": 102, \"NAME\": \"Parit Nenas\", \"pnjg\": 4572.011993, \"BIAYA\": 0, \"JENIS\": \"\", \"LEBAR\": 0, \"FUNGSI\": \"Primer\", \"GAMBAR\": \"\", \"PROYEK\": \"\", \"SUMBER\": \"\", \"PANJANG\": 0, \"Pjg_d_m\": 765.150949, \"Rencana\": \"Normalisasi Saluran\", \"Pjg_d_km\": 0.765151, \"Rencana2\": \"Normalisasi Saluran\", \"KECAMATAN\": \"Pontianak Utara\", \"KONTRUKSI\": \"Barau Belian\", \"PEKERJAAN\": \"Peningkatan\", \"Konstruksi\": \"Kayu\", \"NORMALISAS\": 0, \"P_LIHARAAN\": 2002, \"P_NINGKATA\": 0}', '2025-06-07 00:52:02', '2025-06-07 00:52:02'),
-(2009, 'Parit Jl. Perintis Kemerdekaan', 'Primer', 0.00, 5, 'LineString', '[[109.360265350422, -0.03089898475885497], [109.36045386489072, -0.030577001399778023], [109.3608151465276, -0.02972397837987015], [109.3612287217156, -0.02852519801034097], [109.36128144306508, -0.028362184710773605]]', '{\"ID\": 0, \"NO\": 0, \"NAME\": \"Parit Jl. Perintis Kemerdekaan\", \"pnjg\": 0, \"BIAYA\": 0, \"JENIS\": \"\", \"LEBAR\": 0, \"FUNGSI\": \"Primer\", \"GAMBAR\": \"\", \"PROYEK\": \"\", \"SUMBER\": \"\", \"PANJANG\": 0, \"Pjg_d_m\": 303.148123, \"Rencana\": \"Pembangunan Turap Beton\", \"Pjg_d_km\": 0.303148, \"Rencana2\": \"Normalisasi Saluran\", \"KECAMATAN\": \"Pontianak Timur\", \"KONTRUKSI\": \"\", \"PEKERJAAN\": \"\", \"Konstruksi\": \"Tanah\", \"NORMALISAS\": 0, \"P_LIHARAAN\": 0, \"P_NINGKATA\": 0}', '2025-06-07 00:52:02', '2025-06-07 00:52:02'),
-(2010, 'Data baru', 'Tersier', NULL, 2, 'LineString', '[[109.33203756809236, -0.06297289057324137], [109.33217704296112, -0.0631928315791602], [109.33239161968233, -0.0634074081693935], [109.33260083198547, -0.06355224736730514]]', '{\"Data baru\": {\"type\": \"LineString\", \"fungsi\": \"Tersier\", \"kecamatan\": \"Pontianak Selatan\", \"coordinates\": {\"type\": \"LineString\", \"coordinates\": [[109.33203756809236, -0.06297289057324137], [109.33217704296112, -0.0631928315791602], [109.33239161968233, -0.0634074081693935], [109.33260083198547, -0.06355224736730514]]}}}', '2025-06-07 22:15:01', '2025-06-07 22:15:01');
+(2009, 'Parit Jl. Perintis Kemerdekaan', 'Primer', 0.00, 5, 'LineString', '[[109.360265350422, -0.03089898475885497], [109.36045386489072, -0.030577001399778023], [109.3608151465276, -0.02972397837987015], [109.3612287217156, -0.02852519801034097], [109.36128144306508, -0.028362184710773605]]', '{\"ID\": 0, \"NO\": 0, \"NAME\": \"Parit Jl. Perintis Kemerdekaan\", \"pnjg\": 0, \"BIAYA\": 0, \"JENIS\": \"\", \"LEBAR\": 0, \"FUNGSI\": \"Primer\", \"GAMBAR\": \"\", \"PROYEK\": \"\", \"SUMBER\": \"\", \"PANJANG\": 0, \"Pjg_d_m\": 303.148123, \"Rencana\": \"Pembangunan Turap Beton\", \"Pjg_d_km\": 0.303148, \"Rencana2\": \"Normalisasi Saluran\", \"KECAMATAN\": \"Pontianak Timur\", \"KONTRUKSI\": \"\", \"PEKERJAAN\": \"\", \"Konstruksi\": \"Tanah\", \"NORMALISAS\": 0, \"P_LIHARAAN\": 0, \"P_NINGKATA\": 0}', '2025-06-07 00:52:02', '2025-06-07 00:52:02');
 
 -- --------------------------------------------------------
 
@@ -2283,7 +2282,7 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (7, '2025_06_05_083609_create_rawan_banjirs_table', 1),
 (8, '2025_06_04_032634_add_role_enum_to_users_table', 2),
 (10, '2025_06_07_144021_create_reports_table', 3),
-(11, '2025_06_08_135913_create_notifications_table', 4);
+(13, '2025_06_08_135913_create_notifications_table', 4);
 
 -- --------------------------------------------------------
 
@@ -2307,9 +2306,14 @@ CREATE TABLE `notifications` (
 --
 
 INSERT INTO `notifications` (`id`, `type`, `notifiable_type`, `notifiable_id`, `data`, `read_at`, `created_at`, `updated_at`) VALUES
-('1cc94e58-c681-4091-b12b-ccd1b840a1ba', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru Laporan 5\",\"created_by\":\"Ditambahkan oleh Andi Muhammad Fadhil Masyhun Arham\",\"report_id\":10,\"user_id\":2}', NULL, '2025-06-10 00:39:05', '2025-06-10 00:39:05'),
-('44c31c92-f6b8-42a7-aba3-25da50217aa4', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"message\":\"Laporan baru ditambahkan oleh Andi Muhammad Fadhil Masyhun Arham: Banjir Aming\",\"report_id\":5,\"user_id\":2}', NULL, '2025-06-08 07:25:14', '2025-06-08 07:25:14'),
-('b1e4c9a4-9e32-4c45-81cf-7c4347f29bf9', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru Andi Muhammad Fadhil Masyhun Arham\",\"created_by\":\"Ditambahkan oleh Andi Muhammad Fadhil Masyhun Arham\",\"report_id\":6,\"user_id\":2}', NULL, '2025-06-08 23:25:07', '2025-06-08 23:25:07');
+('0804289e-59db-4d9d-b05e-8ddd6df3a011', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh erere\",\"report_id\":19}', '2025-06-12 08:49:20', '2025-06-12 08:35:23', '2025-06-12 08:49:20'),
+('13c05ef3-88fd-4679-8cd6-99b1d6a9f44e', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh Andi Muhammad Fadhil Masyhun Arham\",\"report_id\":16}', '2025-06-12 07:46:47', '2025-06-12 07:46:37', '2025-06-12 07:46:47'),
+('16012b11-a4a0-470d-94a3-6ef0e6f62aa9', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh \",\"report_id\":14}', '2025-06-12 07:45:31', '2025-06-12 07:13:45', '2025-06-12 07:45:31'),
+('218f379c-d5f7-48db-b838-3b450f55ebda', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh erere\",\"report_id\":18}', '2025-06-12 08:49:20', '2025-06-12 08:23:35', '2025-06-12 08:49:20'),
+('9702f8e6-dfdd-4454-baf1-0aef8c97e2b4', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh erere\",\"report_id\":17}', '2025-06-12 08:49:20', '2025-06-12 08:22:42', '2025-06-12 08:49:20'),
+('aaf32935-f453-487d-8739-ac39a3f0c6b2', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh Andi Muhammad\",\"report_id\":20}', '2025-06-14 23:25:47', '2025-06-14 23:25:32', '2025-06-14 23:25:47'),
+('c6a8f1a8-5483-481e-9e23-f880156014be', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru\",\"created_by\":\"Ditambahkan oleh Andi\",\"report_id\":15}', '2025-06-12 07:45:31', '2025-06-12 07:23:42', '2025-06-12 07:45:31'),
+('f3a1cd44-c728-4eb0-a1f5-6db70e8617a7', 'App\\Notifications\\NewReportNotification', 'App\\Models\\User', 1, '{\"title\":\"Laporan baru Laporan Banjir Gang Abidin\",\"created_by\":\"Ditambahkan oleh Andi Muhammad Fadhil Masyhun Arham\",\"report_id\":11,\"user_id\":2}', '2025-06-12 07:45:31', '2025-06-12 06:43:08', '2025-06-12 07:45:31');
 
 -- --------------------------------------------------------
 
@@ -2345,7 +2349,6 @@ CREATE TABLE `rawan_banjirs` (
 --
 
 INSERT INTO `rawan_banjirs` (`id`, `name`, `kecamatan_id`, `type`, `coordinates`, `radius`, `created_at`, `updated_at`) VALUES
-(1, 'Rawan Banjir Pontianak Selatan', 2, 'Circle', '[109.33541715145113, -0.037824508780604]', 150.57830770817, '2025-06-07 05:39:37', '2025-06-07 05:39:37'),
 (2, 'Rawan Banjir Pontianak Barat', 3, 'Circle', '[109.31879281997682, -0.016500949631520205]', 414.12465348172, '2025-06-10 00:40:31', '2025-06-10 00:43:27'),
 (3, 'Rawan Banjir Pontianak Utara', 4, 'Circle', '[109.33473587036131, 0.016565322645203467]', 843.59980002269, '2025-06-10 00:43:47', '2025-06-10 00:43:47'),
 (4, 'Rawan Banjir Pontianak Kota', 1, 'Circle', '[109.32031631469728, -0.0309848770297689]', 434.11795264912, '2025-06-10 00:44:09', '2025-06-10 00:44:09'),
@@ -2360,7 +2363,7 @@ INSERT INTO `rawan_banjirs` (`id`, `name`, `kecamatan_id`, `type`, `coordinates`
 
 CREATE TABLE `reports` (
   `id` bigint UNSIGNED NOT NULL,
-  `user_id` bigint UNSIGNED NOT NULL,
+  `user_id` bigint UNSIGNED DEFAULT NULL,
   `title` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` text COLLATE utf8mb4_unicode_ci,
   `coordinates` json NOT NULL,
@@ -2371,19 +2374,22 @@ CREATE TABLE `reports` (
   `attachments` json DEFAULT NULL,
   `category` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
-  `updated_at` timestamp NULL DEFAULT NULL
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `reporter_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reporter_contact` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `reports`
 --
 
-INSERT INTO `reports` (`id`, `user_id`, `title`, `description`, `coordinates`, `type`, `location_name`, `kecamatan_id`, `status`, `attachments`, `category`, `created_at`, `updated_at`) VALUES
-(5, 2, 'Banjir Aming', 'Jalanan Banjir', '[\"-0.0542781\", \"109.3054491\"]', 'Point', 'Jl. Ilham', 1, 'Fixed', '\"reports/psxeTxuB5nk3qQtfjlcKnqlmWuzDiKsWkN53N8Dm.png\"', 'Banjir', '2025-06-08 07:25:12', '2025-06-10 00:09:52'),
-(6, 2, 'Andi Muhammad Fadhil Masyhun Arham', 'test', '[\"-0.0542715\", \"109.3054947\"]', 'Point', 'SMA ST. Paulus Update', 1, 'Pending', '\"reports/I0Mrs853a1Ya2MXwTyrnMT4lFf3xKOe1anT2JIhD.png\"', 'Drainase', '2025-06-08 23:25:06', '2025-06-08 23:25:06'),
-(8, 1, 'Laporan 2', 'test', '[\"-0.024585127076071276\", \"109.29289877414705\"]', 'Point', 'Jl. Gang Arkarin IX', 3, 'In Progress', '\"reports/Dr88Tb47a68fn2zeWd9HMOTtFuU46ONiXjkDcL4F.png\"', 'Drainase', '2025-06-10 00:11:09', '2025-06-10 00:11:31'),
-(9, 1, 'Laporan 4', 'test', '[\"-0.03313600832281833\", \"109.30630445480348\"]', 'Point', 'Jl. Dr. Wahidin', 1, 'Aborted', '\"reports/5NehNdxgn6tc5ZL04A55eoKzUbGdfOMzPJ7L2F5d.png\"', 'Banjir', '2025-06-10 00:12:49', '2025-06-10 00:13:13'),
-(10, 2, 'Laporan 5', 'test', '[\"-0.04643439738278242\", \"109.33752536773682\"]', 'Point', 'GOR Pangsuma', 2, 'Pending', '\"reports/RWbpIIzeYhbKTKLiCfiiXGlkUuwGtMcWW7ZLyDvT.png\"', 'Lainnya', '2025-06-10 00:39:04', '2025-06-10 00:39:04');
+INSERT INTO `reports` (`id`, `user_id`, `title`, `description`, `coordinates`, `type`, `location_name`, `kecamatan_id`, `status`, `attachments`, `category`, `created_at`, `updated_at`, `reporter_name`, `reporter_contact`) VALUES
+(5, 2, 'Banjir Aming', 'Jalanan Banjir', '[\"-0.0542781\", \"109.3054491\"]', 'Point', 'Jl. Ilham', 1, 'Fixed', '\"reports/psxeTxuB5nk3qQtfjlcKnqlmWuzDiKsWkN53N8Dm.png\"', 'Banjir', '2025-06-08 07:25:12', '2025-06-10 00:09:52', NULL, NULL),
+(6, 2, 'Andi Muhammad Fadhil Masyhun Arham', 'test', '[\"-0.0542715\", \"109.3054947\"]', 'Point', 'SMA ST. Paulus Update', 1, 'Pending', '\"reports/I0Mrs853a1Ya2MXwTyrnMT4lFf3xKOe1anT2JIhD.png\"', 'Drainase', '2025-06-08 23:25:06', '2025-06-08 23:25:06', NULL, NULL),
+(10, 2, 'Laporan 5', 'test', '[\"-0.04643439738278242\", \"109.33752536773682\"]', 'Point', 'GOR Pangsuma', 2, 'Pending', '\"reports/RWbpIIzeYhbKTKLiCfiiXGlkUuwGtMcWW7ZLyDvT.png\"', 'Lainnya', '2025-06-10 00:39:04', '2025-06-10 00:39:04', NULL, NULL),
+(15, NULL, 'Laporan 11', 'test', '[\"-0.045216674879530405\", \"109.3120175600052\"]', 'Point', 'Gang Abidin', 1, 'Pending', '\"reports/BCdBfEIMhbxnQx7KrOxStybAFzHTbJDFfxEcnbAp.png\"', 'Drainase', '2025-06-12 07:23:42', '2025-06-12 07:23:42', 'Andi', 'andi@gmail.com'),
+(17, NULL, 'Andi Muhammad Fadhil Masyhun Arham', 'test', '[\"-0.0451406\", \"109.312159\"]', 'Point', 'Pontianak, Kalimantan Barat', 1, 'Pending', '\"reports/Q1LdramGAsq2UxIXSzbrmNZaoqEZ1Zoh84jBXVGX.png\"', 'Drainase', '2025-06-12 08:22:42', '2025-06-12 08:22:42', 'erere', 'my.andimhmmad14@gmail.com'),
+(18, NULL, 'Andi Muhammad Fadhil Masyhun Arham', 'erererer', '[\"-0.0543056\", \"109.3054085\"]', 'Point', 'SMA ST. Paulus Update', 1, 'Pending', '\"reports/pBq8vXsdpXUxDZDNTid5oztY8R4al4srwC8ORYyR.png\"', 'Drainase Update', '2025-06-12 08:23:35', '2025-06-12 08:23:35', 'erere', 'my.andimhmmad14@gmail.com');
 
 -- --------------------------------------------------------
 
@@ -2405,7 +2411,7 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('U5FEU3WkrFNGhdqjaCAvWaANhGebJQ4a56B5vdIa', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', 'YTo0OntzOjY6Il90b2tlbiI7czo0MDoieDBHZ2IxMllQNThwemlvbjJQOUlmbG5OemRSa1Z5YnQ2NWcwMFlNZyI7czozOiJ1cmwiO2E6MTp7czo4OiJpbnRlbmRlZCI7czo1NToiaHR0cHM6Ly9zaXN0ZW0taW5mb3JtYXNpLWRyYWluYXNlLXBvbnRpYW5hay50ZXN0L3JlcG9ydCI7fXM6OToiX3ByZXZpb3VzIjthOjE6e3M6MzoidXJsIjtzOjQ4OiJodHRwczovL3Npc3RlbS1pbmZvcm1hc2ktZHJhaW5hc2UtcG9udGlhbmFrLnRlc3QiO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX19', 1749563410);
+('qa9keTopxyBlMVQoiygYj8ckfWInaLc5jdHnS74U', NULL, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36', 'YTozOntzOjY6Il90b2tlbiI7czo0MDoiZDVBUlR1QWV6elpMYllaNWI3Qm12UmdpQUh4bnd0elpqRm4yOVJXSSI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6MTp7czozOiJ1cmwiO3M6MTA0OiJodHRwczovL3Npc3RlbS1pbmZvcm1hc2ktZHJhaW5hc2UtcG9udGlhbmFrLnRlc3QvZHJhaW5hc2UvbmVhcmJ5P2xhdD0tMC4wNDU2ODI4JmxuZz0xMDkuMzQyNjQyMiZyYWRpdXM9MCI7fX0=', 1749974025);
 
 -- --------------------------------------------------------
 
@@ -2430,7 +2436,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `role`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, 'Andi Muhammad', 'andi@example.com', '2025-06-07 00:51:48', '$2y$12$Axy/ARmnQCStpEBOlp.fWObbepQqhZmymM6gISFqmU8a1Xf8cM0Ki', 'Admin', '3nGO8cCmhz6dKvmA22oFZp64IOnYakLL0MUfzwEJpe94OkR3L54YLbpV0ZZS', '2025-06-07 00:51:48', '2025-06-07 00:51:48'),
+(1, 'Andi Muhammad', 'andi@example.com', '2025-06-07 00:51:48', '$2y$12$Axy/ARmnQCStpEBOlp.fWObbepQqhZmymM6gISFqmU8a1Xf8cM0Ki', 'Admin', 'rEkPaw2ZK3rVfmmQA3vk3R2PJsrEJzA0WNFLDp9YZxKPVJUv0KpgJCa5r6kE', '2025-06-07 00:51:48', '2025-06-07 00:51:48'),
 (2, 'Andi Muhammad Fadhil Masyhun Arham', 'andi@gmail.com', NULL, '$2y$12$10hgfIy7RAVs0GD45oRtru3bg0OnfdAT0eVDmvPk2kSGCnr4fAxcS', 'User', NULL, '2025-06-07 06:34:45', '2025-06-07 06:34:45');
 
 --
@@ -2577,7 +2583,7 @@ ALTER TABLE `kelurahans`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `rawan_banjirs`
@@ -2589,7 +2595,7 @@ ALTER TABLE `rawan_banjirs`
 -- AUTO_INCREMENT for table `reports`
 --
 ALTER TABLE `reports`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `users`

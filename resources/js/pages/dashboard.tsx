@@ -56,7 +56,6 @@ export default function Dashboard({
     popupAnchor: [0, -32],
   });
   const { auth } = usePage<SharedData>().props;
-  console.log(rawanBanjir)
 
   return (
     <AppLayout breadcrumbs={breadcrumbs}>

@@ -51,10 +51,9 @@ class NewReportNotification extends Notification
   public function toArray(object $notifiable): array
   {
     return [
-      'title' => "Laporan baru {$this->report->title}",
-      'created_by' => "Ditambahkan oleh {$this->report->user->name}",
+      'title' => "Laporan baru",
+      'created_by' => 'Ditambahkan oleh ' . ($this->report->user?->name ?? $this->report->reporter_name),
       'report_id' => $this->report->id,
-      'user_id' => $this->report->user_id,
     ];
   }
 }

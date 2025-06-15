@@ -16,6 +16,8 @@ class Report extends Model
     "category",
     "status",
     "type",
+    "reporter_name",
+    "reporter_contact",
     "attachments",
   ];
 

@@ -80,6 +80,8 @@ type Reports = {
   description: string;
   location_name: string;
   status: string;
+  reporter_name: string;
+  reporter_contact: string;
   kecamatan?: {
     nama: string;
   };
@@ -90,6 +92,7 @@ type Reports = {
   user?: {
     id: number;
     name: string;
+    email: string
   };
 };
 
@@ -196,11 +199,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
         <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min p-4">
           <div className="flex flex-col lg:flex-row items-center justify-between mx-4 relative z-[999]">
             {/* Dropdown Filter Kecamatan */}
-            <KecamatanFilter
-              value={kecamatan}
-              options={kecamatanOptions}
-              onChange={(val) => setKecamatan(val)}
-            />
             <div>
               <Button onClick={() => router.visit('/report/create')} className='bg-green-500 cursor-pointer hover:bg-green-800 mb-4'>Tambah Data Laporan</Button>
             </div>
@@ -274,101 +272,52 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                           </span>
                         </p>
                       </div>
+                      <div className='flex gap-2 items-center justify-start'>
+                        {auth.user?.id === report.user?.id && (
+                          <Button
+                            onClick={() => router.visit(`/report/${report.id}/edit`)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                            title="Edit"
+                            variant={"outline"}
+                          >
+                            <SquarePen className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {auth.user?.id === report.user?.id && (
+                          <Button
+                            onClick={() => handleDelete(report.id)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                            title="Hapus"
+                            variant={"outline"}
+                          >
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {auth.user?.role === 'Admin' && (
+                          <Button
+                            onClick={() => router.visit(`/report/${report.id}/detail`)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-green-500 hover:bg-green-800"
+                            title="Show Detail"
+                            variant={"outline"}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        )}
+                        {auth.user?.role === 'Admin' && (
+                          <Button
+                            onClick={() => handleDelete(report.id)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                            title="Hapus"
+                            variant={"outline"}
+                          >
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </Popup>
                 </Marker>
               ))}
-
-
-              {filteredLines.map((line) => {
-                const latLngCoordinates: [number, number][] = line.coordinates.map(
-                  ([lng, lat]) => [lat, lng]
-                );
-
-                return (
-                  <Polyline
-                    key={line.id}
-                    positions={latLngCoordinates}
-                    pathOptions={{ color: 'blue', weight: 2 }}
-                    pane="drainasePane"
-                  >
-                    <Popup>
-                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
-                        <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {line.name}</h3>
-                        <div className="space-y-1">
-                          <p><span className="font-medium">Fungsi:</span> {line.fungsi || '-'}</p>
-                          <p><span className="font-medium">Kecamatan:</span> {line.kecamatan || '-'}</p>
-                        </div>
-                        <div className="mt-2 text-xs text-gray-500 italic">
-                          Jalur drainase yang terdeteksi
-                        </div>
-                      </div>
-                    </Popup>
-                  </Polyline>
-                );
-              })}
-
-
-              {filteredRawanBanjir.map((item) => (
-                <Circle
-                  key={item.id}
-                  center={[item.coordinates[1], item.coordinates[0]]}
-                  radius={item.radius}
-                  color="red"
-                  fillOpacity={0.3}
-                  pane="circlePane"
-                >
-                  <Popup>
-                    <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
-                      <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
-                      <div className="space-y-1">
-                        <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
-                      </div>
-                      <div className="mt-2 text-xs text-red-500 italic">
-                        Area dengan potensi rawan banjir
-                      </div>
-                    </div>
-                  </Popup>
-                </Circle>
-              ))}
-
-
-              {batasKecamatan.map((kec) => {
-                if (!Array.isArray(kec.coordinates) || !Array.isArray(kec.coordinates[0])) {
-                  return null;
-                }
-
-                const latlngs: [number, number][][] = kec.coordinates.map(
-                  (ring) =>
-                    ring.map(([lng, lat]) => [lat, lng] as [number, number])
-                );
-
-                return (
-                  <Polygon
-                    key={kec.nama}
-                    positions={latlngs}
-                    pathOptions={{
-                      color: getColorForKecamatan(kec.nama),
-                      fillOpacity: 0.2,
-                      weight: 2,
-                    }}
-                  >
-                    <Popup>
-                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-slate-800 text-sm">
-                        <h3 className="text-base font-semibold text-indigo-600 mb-1">📍 Wilayah Kecamatan</h3>
-                        <div className="space-y-1">
-                          <p><span className="font-medium">Nama:</span> {kec.nama}</p>
-                          <p><span className="font-medium">Kode Warna:</span> <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: getColorForKecamatan(kec.nama) }}></span></p>
-                        </div>
-                        <div className="mt-2 text-xs text-slate-500 italic">
-                          Batas administratif wilayah kecamatan
-                        </div>
-                      </div>
-                    </Popup>
-                  </Polygon>
-                );
-              })}
-
 
             </MapContainer>
           </section>
@@ -381,10 +330,14 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                   <TableRow>
                     <TableHead>No</TableHead>
                     <TableHead>Nama Laporan</TableHead>
-                    <TableHead>Nama Pelapor</TableHead>
+                    {auth.user?.role === 'Admin' && (
+                      <TableHead>Nama Pelapor</TableHead>
+                    )}
+                    {auth.user?.role === 'Admin' && (
+                      <TableHead>Email</TableHead>
+                    )}
                     <TableHead>Lokasi</TableHead>
                     <TableHead>Kategori</TableHead>
-                    <TableHead>Deskripsi</TableHead>
                     <TableHead>Kecamatan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Option</TableHead>
@@ -395,10 +348,14 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                     <TableRow key={item.id} className="hover:bg-muted transition-colors cursor-pointer">
                       <TableCell>{(reports.current_page - 1) * 10 + index + 1}</TableCell>
                       <TableCell>{item.title}</TableCell>
-                      <TableCell>{item.user?.name}</TableCell>
+                      {auth.user?.role === 'Admin' && (
+                        <TableCell>{item.user?.name || item.reporter_name}</TableCell>
+                      )}
+                      {auth.user?.role === 'Admin' && (
+                        <TableCell>{item.user?.email || item.reporter_contact}</TableCell>
+                      )}
                       <TableCell>{item.location_name}</TableCell>
                       <TableCell>{item.category || '-'}</TableCell>
-                      <TableCell>{item.description}</TableCell>
                       <TableCell>{item.kecamatan?.nama || '-'}</TableCell>
                       <TableCell>
                         <Badge

@@ -2,7 +2,7 @@ import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, usePage, router, useForm } from '@inertiajs/react';
-
+import "leaflet/dist/leaflet.css";
 import {
   Table,
   TableBody,
@@ -23,6 +23,8 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Trash, SquarePen } from 'lucide-react';
+import { useState } from 'react';
+import { MapContainer, Polyline, Popup, TileLayer } from 'react-leaflet';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -42,6 +44,35 @@ type Drainase = {
   kondisi: string;
   updated_at: string;
 };
+
+type Line =
+  | {
+    id: number;
+    name: string;
+    type: 'LineString';
+    coordinates: [number, number][];
+    fungsi?: string;
+    kecamatan?: string | null;
+  }
+  | {
+    id: number;
+    name: string;
+    type: 'Point';
+    coordinates: [number, number];
+    fungsi?: string;
+    kecamatan?: string | null;
+  }
+  | {
+    id: number;
+    name: string;
+    type: 'Circle';
+    coordinates: {
+      center: [number, number];
+      radius: number;
+    };
+    fungsi?: string;
+    kecamatan?: string | null;
+  };
 
 type DrainasePagination = {
   data: Drainase[];
@@ -65,6 +96,7 @@ type Filters = {
 };
 
 type PageProps = {
+  lines: Line[];
   filters?: Filters;
   kecamatanOptions: KecamatanOption[];
   statistik: {
@@ -86,6 +118,8 @@ export default function Drainase() {
 
   // Fetching drainase data from the page props
   const { drainase } = usePage<{ drainase: DrainasePagination }>().props;
+
+  const { lines } = usePage<PageProps>().props;
 
   // Fetching statistik from the page props
   const { statistik } = usePage<PageProps>().props;
@@ -177,8 +211,68 @@ export default function Drainase() {
             </CardContent>
 
           </Card>
-
         </div>
+
+        <section className="w-full h-[600px] mb-8 px-5 z-0">
+          <MapContainer
+            center={[-0.02, 109.34]} // Pusat Kota Pontianak
+            zoom={14}
+            scrollWheelZoom={true}
+            className="w-full h-full"
+
+          >
+            <TileLayer
+              attribution='&copy; OpenStreetMap contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            {lines.map((item, idx) => {
+              const latLngCoordinates: [number, number][] = (Array.isArray(item.coordinates)
+                ? (item.coordinates as [number, number][])
+                : []
+              ).map(([lng, lat]) => [lat, lng]);
+              return (
+                <Polyline
+                  key={idx}
+                  positions={latLngCoordinates}
+                  pathOptions={{ color: 'blue', weight: 2 }}
+                >
+                  <Popup>
+                    <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
+                      <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {item.name}</h3>
+                      <div className="space-y-1">
+                        <p><span className="font-medium">Fungsi:</span> {item.fungsi || '-'}</p>
+                        <p><span className="font-medium">Kecamatan:</span> {item.kecamatan || '-'}</p>
+                        <div className='flex gap-2 items-center justify-start'>
+                          <Button
+                            onClick={() => router.visit(`/admin/drainase/${item.id}/edit`)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                            title="Edit"
+                            variant={"outline"}
+                          >
+                            <SquarePen className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDelete(item.id)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                            title="Hapus"
+                            variant={"outline"}
+                          >
+                            <Trash className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500 italic">
+                        Jalur drainase yang terdeteksi
+                      </div>
+                    </div>
+                  </Popup>
+                </Polyline>
+              );
+            })}
+
+          </MapContainer>
+        </section>
 
         <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min">
           {/* Table Section */}

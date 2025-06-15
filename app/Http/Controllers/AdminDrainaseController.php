@@ -53,8 +53,22 @@ class AdminDrainaseController extends Controller
         ];
       });
 
+    // Map
+    $queryLines = Drainase::with('kecamatan');
+
+    $lines = $queryLines->get()->map(function ($item) {
+      return [
+        'id' => $item->id,
+        'name' => $item->name,
+        'type' => $item->type,
+        'coordinates' => $item->coordinates,
+        'fungsi' => $item->fungsi,
+        'kecamatan' => $item->kecamatan->nama ?? null,
+      ];
+    });
 
     return Inertia::render('admin/drainase/index', [
+      'lines' => $lines,
       'drainase' => $drainase,
       'filters' => $request->only(['search', 'kecamatan_id']),
       'kecamatanOptions' => Kecamatan::select('id', 'nama')->get(),

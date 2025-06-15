@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
+import 'leaflet/dist/leaflet.css';
 import {
   Card,
   CardContent,
@@ -22,6 +22,7 @@ import {
 
 import { Button } from '@/components/ui/button';
 import { Trash, SquarePen } from 'lucide-react';
+import { Circle, MapContainer, Popup, TileLayer } from 'react-leaflet';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -74,8 +75,12 @@ type PageProps = {
   };
 };
 
+type IndexProps = {
+  circle: any[];
+};
 
-export default function RawanBanjir() {
+
+export default function RawanBanjir({ circle }: IndexProps) {
 
   // Fetching drainase data from the page props
   const { rawanBanjir } = usePage<{ rawanBanjir: RawanBanjirPagination }>().props;
@@ -108,7 +113,7 @@ export default function RawanBanjir() {
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Rawan Banjir" />
       <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-        <div className="grid auto-rows-3 gap-4 md:grid-cols-4">
+        <div className="grid auto-rows-3 gap-4 md:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle>Total Daerah Rawan Banjir</CardTitle>
@@ -142,32 +147,62 @@ export default function RawanBanjir() {
             </CardContent>
 
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Fungsi Drainase</CardTitle>
-              <CardDescription>Jumlah drainase berdasarkan fungsi</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-lg font-medium">Primer</p>
-                  {/* <p className="text-2xl font-semibold">{statistik.fungsi.primer}</p> */}
-                  <p className="text-sm text-muted-foreground">Drainase fungsi primer</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-medium">Sekunder</p>
-                  {/* <p className="text-2xl font-semibold">{statistik.fungsi.sekunder}</p> */}
-                  <p className="text-sm text-muted-foreground">Drainase fungsi sekunder</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-lg font-medium">Tersier</p>
-                  {/* <p className="text-2xl font-semibold">{statistik.fungsi.tersier}</p> */}
-                  <p className="text-sm text-muted-foreground">Drainase fungsi tersier</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="font-semibold mb-2">Peta Sebaran</h3>
+            <div className="h-[500px] w-full rounded overflow-hidden">
+              <MapContainer center={[-0.0263, 109.3425]} zoom={12} className="h-full w-full" scrollWheelZoom>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution="&copy; OpenStreetMap contributors"
+                />
+                {/* Circle rawan banjir */}
+                {rawanBanjir.data.map((item) =>
+                  // Only render Circle if coordinates property exists
+                  'coordinates' in item && Array.isArray((item as any).coordinates) ? (
+                    <Circle
+                      key={`banjir-${item.id}`}
+                      center={[(item as any).coordinates[1], (item as any).coordinates[0]]}
+                      radius={Number(item.radius)}
+                      pathOptions={{ color: 'red', fillOpacity: 0.4 }}
+                    >
+                      <Popup>
+                        <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
+                          <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
+                          <div className="space-y-1">
+                            <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
+                            <div className='flex gap-2 items-center justify-start'>
+                              <Button
+                                onClick={() => router.visit(`/admin/rawan-banjir/${item.id}/edit`)}
+                                className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                                title="Edit"
+                                variant={"outline"}
+                              >
+                                <SquarePen className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                onClick={() => handleDelete(item.id)}
+                                className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                                title="Hapus"
+                                variant={"outline"}
+                              >
+                                <Trash className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-xs text-red-500 italic">
+                            Area dengan potensi rawan banjir
+                          </div>
+                        </div>
+                      </Popup>
+                    </Circle>
+                  ) : null
+                )}
+              </MapContainer>
+            </div>
+          </CardContent>
+        </Card>
         <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border md:min-h-min">
           {/* Table Section */}
           <div className='flex justify-between p-2'>

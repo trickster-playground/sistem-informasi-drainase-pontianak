@@ -49,8 +49,10 @@ class AdminRawanBanjirController extends Controller
       });
 
 
+
     return Inertia::render('admin/rawan_banjir/index', [
       'rawanBanjir' => $rawanBanjir,
+      'circle' => RawanBanjir::all(['id', 'name', 'coordinates', 'radius']),
       'filters' => $request->only(['search', 'kecamatan_id']),
       'kecamatanOptions' => Kecamatan::select('id', 'nama')->get(),
       'statistik' => [

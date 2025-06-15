@@ -126,17 +126,6 @@ export default function CreateDrainase({ lines, selectedKecamatan = 'all', kecam
     return kecamatanColors[nama] || '#3cb44b'; // fallback hitam kalau nama gak ada
   }
 
-  // Handler ketika kecamatan berubah
-  function onFilterChange(selected: string) {
-    setKecamatan(selected);
-
-    const url = selected !== 'all'
-      ? route('admin.drainase.create') + '?kecamatan=' + encodeURIComponent(selected)
-      : route('admin.drainase.create');
-
-    get(url, { preserveState: true, replace: true });
-  }
-
 
   const handleDrawCreated = (e: any) => {
     const layer = e.layer;
@@ -275,11 +264,11 @@ export default function CreateDrainase({ lines, selectedKecamatan = 'all', kecam
                     onCreated={handleDrawCreated}
                     onDeleted={handleDrawDeleted}
                     draw={{
-                      polygon: true,
+                      polygon: false,
                       rectangle: false,
-                      circle: true,
-                      circlemarker: true,
-                      marker: true,
+                      circle: false,
+                      circlemarker: false,
+                      marker: false,
                       polyline: true,
                     }}
                   />

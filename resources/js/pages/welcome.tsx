@@ -1,5 +1,5 @@
 import { type SharedData } from '@/types';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import "leaflet/dist/leaflet.css";
 import { useEffect, useState } from 'react';
 
@@ -16,6 +16,8 @@ import {
   Circle
 } from 'react-leaflet';
 
+import placeholderImage from '/public/assets/icons/placeholder.jpg';
+
 import CreateDrainasePane from '@/components/preview/CreateDrainasePane';
 import CreateMarkerPane from '@/components/preview/CreateMarkerPane';
 import AppLogo from '@/components/app-logo';
@@ -23,11 +25,25 @@ import CreateCirclePane from '@/components/preview/CreateCirclePane';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import SetMapCenter from '@/components/preview/SetMapCenter';
+
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { point, polygon } from '@turf/helpers';
+
+import axios from 'axios';
 
 type Line = {
   id: number;
   name: string;
   coordinates: [number, number][];
+  type: 'LineString';
+  fungsi?: string;
+  kecamatan?: string | null;
+} | {
+  id: number;
+  name: string;
+  type: 'Point';
+  coordinates: [number, number];
   fungsi?: string;
   kecamatan?: string | null;
 };
@@ -41,6 +57,7 @@ type rawanBanjir = {
   kecamatan?: string | null;
 };
 
+
 type Props = {
   lines: Line[];
   batasKecamatan: {
@@ -52,16 +69,89 @@ type Props = {
   rawanBanjir: rawanBanjir[];
 };
 
+interface BatasKecamatan {
+  id: number;
+  nama: string;
+  coordinates: [number, number][][];
+}
+
+type FormErrors = {
+  reporterName?: string;
+  reporterContact?: string;
+  name?: string;
+  location?: string;
+  description?: string;
+  category?: string;
+  file?: string;
+  [key: string]: string | undefined;
+};
+
 
 export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawanBanjir }: Props) {
   const { auth } = usePage<SharedData>().props;
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
-  const [showLines, setShowLines] = useState(true);
-  const [showRawanBanjir, setShowRawanBanjir] = useState(true);
-  const [showKecamatan, setShowKecamatan] = useState(true);
+  const [showLines, setShowLines] = useState(false);
+  const [showRawanBanjir, setShowRawanBanjir] = useState(false);
+  const [showKecamatan, setShowKecamatan] = useState(false);
 
+  const [radiusValue, setRadiusValue] = useState(0);
+
+
+  const [position, setPosition] = useState<[number, number] | null>(null);
+  const [drainase, setDrainase] = useState<Array<{ coordinates: string; name?: string }>>([]);
+
+  // Form Laporan
+  const [reporterName, setReporterName] = useState('');
+  const [reporterContact, setReporterContact] = useState('');
+  const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [file, setFile] = useState<File | null>(null); // Simpan file yang diupload
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
+
+  const [drawType, setDrawType] = useState<'LineString' | 'Polygon' | 'Circle' | 'Point' | null>(null);
+
+  interface FileChangeEvent extends React.ChangeEvent<HTMLInputElement> {
+    target: HTMLInputElement & EventTarget & {
+      files: FileList;
+    };
+  }
+
+  const handleFileChange = (e: FileChangeEvent) => {
+    const selectedFile: File | undefined = e.target.files[0]; // Ambil file pertama
+    setFile(selectedFile ?? null);
+
+    if (selectedFile) {
+      const objectUrl: string = URL.createObjectURL(selectedFile);
+      setPreview(objectUrl);
+    } else {
+      setPreview(null);
+    }
+  };
+
+  const [coordinates, setCoordinates] = useState<
+    | {
+      type: 'LineString' | 'Polygon';
+      coordinates: [number, number][] | [number, number][][]; // polygon: array of array
+    }
+    | {
+      type: 'Point';
+      coordinates: [number, number];
+    }
+    | {
+      type: 'Circle';
+      center: [number, number];
+      radius: number;
+    }
+    | null
+  >(null);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -69,6 +159,8 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         (position) => {
           const { latitude, longitude } = position.coords;
           setUserLocation([latitude, longitude]);
+          setMarkerPosition([latitude, longitude]);
+          setPosition([latitude, longitude]);
         },
         (error) => {
           console.error("Gagal mendapatkan lokasi pengguna:", error);
@@ -79,6 +171,17 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
     }
   }, []);
 
+  useEffect(() => {
+    if (!position) return;
+
+    const [lat, lng] = position;
+
+    axios.get(`/drainase/nearby`, {
+      params: { lat, lng, radius: radiusValue }
+    }).then(({ data }) => {
+      setDrainase(data);
+    });
+  }, [radiusValue, position]);
 
   const kecamatanColors: Record<string, string> = {
     'Pontianak Kota': '#FF5733',
@@ -90,16 +193,14 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
   };
 
 
-
   function getColorForKecamatan(nama: string): string {
     return kecamatanColors[nama] || '#3cb44b'; // fallback hitam kalau nama gak ada
   }
 
   // State filter kecamatan, default dari prop backend
   const [kecamatan, setKecamatan] = useState<string>('all');
+  const [kecamatanForm, setKecamatanForm] = useState<string>('');
 
-  // Inertia form helper untuk submit filter
-  const { get } = useForm();
 
   // Filter berdasarkan kecamatan
   const filteredLines = kecamatan === 'all'
@@ -129,6 +230,75 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
     popupAnchor: [0, -iconSize[1]],
   });
 
+  function getKecamatanNameByCoordinates(
+    coords: [number, number],
+    batasKecamatan: BatasKecamatan[]
+  ): string {
+    const userPoint = point([coords[1], coords[0]]); // lng, lat
+
+    for (const kec of batasKecamatan) {
+      const polygonCoords: [number, number][][] = kec.coordinates.map(ring =>
+        ring.map(([lng, lat]: [number, number]) => [lng, lat])
+      );
+
+      const poly = polygon([polygonCoords[0]]);
+      if (booleanPointInPolygon(userPoint, poly)) {
+        return kec.nama;
+      }
+    }
+
+    return "Tidak diketahui";
+  }
+
+  useEffect(() => {
+    if (markerPosition && batasKecamatan.length > 0) {
+      const kecamatanNama = getKecamatanNameByCoordinates(
+        [markerPosition[0], markerPosition[1]], // [lat, lng]
+        batasKecamatan
+      );
+      setKecamatanForm(kecamatanNama);
+      setKecamatan(kecamatanNama);
+    }
+  }, [markerPosition, batasKecamatan]);
+
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const payload = {
+      name,
+      reporterName,
+      reporterContact,
+      kecamatan: kecamatanForm,
+      location,
+      description,
+      category,
+      file,
+      type: 'Point',
+      coordinates: markerPosition,
+    };
+
+    router.post('/report/create', payload, {
+      onSuccess: () => {
+        setDrawType(null);
+        setCoordinates(null);
+        setName('');
+        setReporterName('');
+        setReporterContact('');
+        setLocation('');
+        setDescription('');
+        setCategory('');
+        setFile(null);
+        setPreview(null);
+        setKecamatanForm('all');
+
+        console.log('Berhasil disimpan!');
+      },
+      onError: (error) => {
+        setErrors(error);
+      }
+    });
+  };
+
   return (
     <>
       <Head title="Peta Drainase & Banjir Kota Pontianak">
@@ -150,8 +320,8 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
             {/* Navigation Links */}
             <div className="hidden md:flex items-center gap-6 text-sm">
               <Link href="/" className="hover:underline">Home</Link>
-              <Link href="/about" className="hover:underline">About</Link>
-              <Link href="/contact" className="hover:underline">Contact</Link>
+              <Link href="#about" className="hover:underline">About</Link>
+              <Link href="#report" className="hover:underline">Contact</Link>
             </div>
 
             {/* Auth Buttons */}
@@ -181,7 +351,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         </nav>
         {/* Hero */}
         <header className="container mx-auto px-6 mt-8 text-center">
-          <h1 className="text-4xl font-bold mb-4">Peta Drainase & Rawan Banjir Pontianak</h1>
+          <h1 className="text-4xl font-bold mb-4">Sistem Informasi Geografis Jaringan Drainase di Kota Pontianak</h1>
           <p className="text-lg text-gray-600 dark:text-gray-300">
             Jelajahi sebaran drainase dan area rawan banjir di kota. Gunakan data ini untuk perencanaan, pelaporan, dan edukasi.
           </p>
@@ -189,12 +359,24 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         {/* Main Content */}
         <main className="flex flex-1 flex-col px-6 lg:px-28 mt-5 ">
           {/* Dropdown Filter Kecamatan */}
-          <div className='flex justify-center items-center gap-4'>
+          <div className='flex flex-col justify-center items-start lg:flex-row lg:items-center gap-2 '>
             <KecamatanFilter
               value={kecamatan}
               options={kecamatanOptions}
               onChange={(val) => setKecamatan(val)}
             />
+            <div className='flex justify-center items-center gap-2 mb-5'>
+              <label htmlFor="radiusInput" className="text-sm font-medium">Radius pencarian (km)</label>
+              <input
+                type="number"
+                id="radiusInput"
+                className="border rounded px-3 py-1 w-40"
+                value={radiusValue}
+                min={0}
+                onChange={(e) => setRadiusValue(Number(e.target.value))}
+              />
+            </div>
+
             <div className='flex justify-center items-center gap-2 mb-5'>
               <Checkbox id="showDrainase" checked={showLines} onCheckedChange={() => setShowLines(!showLines)} />
               <Label htmlFor="showDrainase">Tampilkan jalur Drainase.</Label>
@@ -212,7 +394,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
           {/* Map Leaflet*/}
           <section className="w-full h-[600px] mb-8 px-5 z-0">
             <MapContainer
-              center={[-0.02, 109.34]} // Pusat Kota Pontianak
+              center={markerPosition ?? [-0.02, 109.34]} // Pusat Kota Pontianak
               zoom={14}
               scrollWheelZoom={true}
               className="w-full h-full"
@@ -239,6 +421,13 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                           {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
                         </span>
                       </p>
+                      <p className="text-gray-700">
+                        Kecamatan:
+                        <br />
+                        <span className="font-mono text-gray-900">
+                          {kecamatanForm}
+                        </span>
+                      </p>
                       <div className="mt-2 text-xs text-gray-500 italic">
                         Data lokasi diperoleh secara otomatis
                       </div>
@@ -247,10 +436,49 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                 </Marker>
               )}
 
-              {showLines && filteredLines.map((line) => {
-                const latLngCoordinates: [number, number][] = line.coordinates.map(
-                  ([lng, lat]) => [lat, lng]
+              {position && radiusValue > 0 && (
+                <Circle
+                  center={position}
+                  radius={radiusValue * 1000}
+                  color="blue"
+                  fillOpacity={0}
+                />
+              )}
+
+
+              {drainase.map((item, idx) => {
+                const latLngCoordinates: [number, number][] = (Array.isArray(item.coordinates)
+                  ? (item.coordinates as [number, number][])
+                  : []
+                ).map(([lng, lat]) => [lat, lng]);
+                return (
+                  <Polyline
+                    key={idx}
+                    positions={latLngCoordinates}
+                    pathOptions={{ color: 'blue', weight: 2 }}
+                    pane="drainasePane"
+                  >
+                    <Popup>
+                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
+                        <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {item.name}</h3>
+                        <div className="space-y-1">
+                          {/* <p><span className="font-medium">Fungsi:</span> {item.fungsi || '-'}</p>
+                          <p><span className="font-medium">Kecamatan:</span> {item.kecamatan || '-'}</p> */}
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 italic">
+                          Jalur drainase yang terdeteksi
+                        </div>
+                      </div>
+                    </Popup>
+                  </Polyline>
                 );
+              })}
+
+              {showLines && filteredLines.map((line) => {
+                const latLngCoordinates: [number, number][] = (Array.isArray(line.coordinates)
+                  ? (line.coordinates as [number, number][])
+                  : []
+                ).map(([lng, lat]) => [lat, lng]);
 
                 return (
                   <Polyline
@@ -342,14 +570,308 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         </main>
 
         {/* About Section */}
-        <section className="container mx-auto px-6 py-16 bg-gray-50 dark:bg-gray-800">
-          <h2 className="text-3xl font-bold mb-4">Tentang Aplikasi</h2>
-          <p className="text-gray-700 dark:text-gray-300 mb-4">
-            Aplikasi ini bertujuan untuk membantu masyarakat Pontianak memahami sebaran drainase serta mengidentifikasi area rawan banjir. Data dikumpulkan dari berbagai sumber dan ditampilkan di peta interaktif agar mudah diakses oleh publik, pemerintah, dan peneliti.
+        <section id="about" className="bg-white dark:bg-gray-900 py-20 px-6 md:px-12">
+          <div className="max-w-5xl mx-auto text-center">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-gray-800 dark:text-white mb-6">
+              Tentang Aplikasi
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+              Platform ini dirancang untuk <span className="font-semibold text-blue-600 dark:text-blue-400">memetakan sistem drainase Kota Pontianak</span> secara interaktif dan informatif. Dengan menggabungkan teknologi geospasial dan data publik, kami memberikan akses mudah untuk memahami kondisi saluran air kota.
+            </p>
+
+            <div className="grid md:grid-cols-2 gap-10 text-left">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">🔍 Transparansi Data</h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Semua data drainase ditampilkan secara terbuka untuk meningkatkan partisipasi masyarakat dalam pelaporan dan pemantauan. Baik warga, akademisi, maupun pemangku kebijakan dapat mengakses informasi ini secara real-time.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">🗺️ Peta Interaktif</h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Menggunakan <strong>LeafletJS</strong> dan teknologi frontend modern seperti <strong>React</strong> & <strong>InertiaJS</strong>, aplikasi ini menyediakan visualisasi yang dinamis dan intuitif untuk melihat kondisi drainase hingga ke tingkat koordinat.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">📈 Dukungan Keputusan</h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Data yang disajikan dapat digunakan sebagai dasar pengambilan keputusan dalam pembangunan infrastruktur, mitigasi banjir, dan perencanaan tata ruang berbasis bukti.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">🤝 Kolaborasi Terbuka</h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Aplikasi ini terbuka untuk pengembangan dan integrasi lebih lanjut. Kami mendorong kontribusi dari komunitas pengembang, peneliti, dan pemerintah daerah untuk menciptakan solusi yang lebih cerdas.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-12">
+              <p className="text-base text-gray-700 dark:text-gray-300">
+                Kami percaya bahwa teknologi dapat menjadi jembatan antara <span className="font-medium text-blue-600 dark:text-blue-400">informasi dan aksi nyata</span>. Dengan memanfaatkan aplikasi ini, Anda ikut berperan dalam membangun Kota Pontianak yang lebih tangguh terhadap perubahan iklim dan tantangan urbanisasi.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Report Section */}
+        <section id='report' className="container mx-auto px-6 py-6 bg-gray-50 dark:bg-gray-800">
+          <h2 className="text-3xl font-bold mb-2 text-blue-700">📝 Laporan Drainase & Banjir</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            Silakan isi formulir berikut untuk membantu kami mendeteksi titik-titik rawan banjir dan kondisi drainase di Pontianak.
           </p>
-          <p className="text-gray-700 dark:text-gray-300">
-            Dikembangkan dengan teknologi modern seperti LeafletJS, React, dan InertiaJS, aplikasi ini berfokus pada antarmuka ringan, responsif, dan mudah digunakan pada berbagai perangkat.
-          </p>
+
+          <form onSubmit={handleSubmit} >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 border border-gray-300 rounded-md p-4 bg-white">
+              <div className='flex flex-col gap-4'>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-medium mb-1">Nama Anda</label>
+                    <input
+                      type="text"
+                      name="reporterName"
+                      value={reporterName}
+                      onChange={(e) => setReporterName(e.target.value)}
+                      placeholder='Nama anda'
+                      className="border rounded px-3 py-2 w-full"
+                      required
+                    />
+                    {errors?.reporterName && (
+                      <p className="text-red-500 text-sm mt-1">{errors.reporterName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">Email Anda</label>
+                    <input
+                      type="email"
+                      name="reporterContact"
+                      value={reporterContact}
+                      onChange={(e) => setReporterContact(e.target.value)}
+                      className="border rounded px-3 py-2 w-full"
+                      placeholder='Alamat email anda'
+                      required
+                    />
+                    {errors?.reporterContact && (
+                      <p className="text-red-500 text-sm mt-1">{errors.reporterContact}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">Nama Laporan</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="border rounded px-3 py-2 w-full"
+                    required
+                  />
+                  {errors?.name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-medium mb-1">Lokasi</label>
+                    <input
+                      type="text"
+                      name="location"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder='Tuliskan alamat laporan'
+                      className="border rounded px-3 py-2 w-full"
+                      required
+                    />
+                    {errors?.location && (
+                      <p className="text-red-500 text-sm mt-1">{errors.location}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-1">Kategori</label>
+                    <input
+                      type="text"
+                      name="category"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="border rounded px-3 py-2 w-full"
+                      placeholder='Drainase / Banjir / Lainnya'
+                      required
+                    />
+                    {errors?.category && (
+                      <p className="text-red-500 text-sm mt-1">{errors.category}</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">Deskripsi</label>
+                  <textarea
+                    name="description"
+                    value={description}
+                    rows={2}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="border rounded px-3 py-2 w-full"
+                    placeholder='Deskripsikan laporan'
+                    required
+                  />
+                  {errors?.description && (
+                    <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+                  )}
+                </div>
+
+                {/* Preview Foto dengan placeholder */}
+                <div>
+                  <label className="block font-medium mb-1">Tambah Foto Pendukung</label>
+                  <div className="flex flex-col items-start border border-gray-300 rounded-md p-3 flex items-center gap-4 bg-white shadow-sm">
+                    <img
+                      src={preview || placeholderImage}
+                      alt="Preview"
+                      className=" max-h-55 object-cover rounded border"
+                    />
+                    <input
+                      type="file"
+                      name="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="text-sm file:bg-blue-600 file:text-white file:py-2 file:px-4 file:rounded file:cursor-pointer"
+                      required
+                    />
+                    {errors?.file && (
+                      <p className="text-red-500 text-sm mt-1">{errors.file}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className='mt-4'>
+                {/* Dropdown Filter Kecamatan */}
+                <div className='flex'>
+                  <KecamatanFilter
+                    value={kecamatanForm}
+                    options={kecamatanOptions}
+                    onChange={(val) => setKecamatanForm(val)}
+                  />
+                  {errors?.kecamatan && (
+                    <p className="text-red-500 text-sm mt-1">{errors.kecamatan}</p>
+                  )}
+                </div>
+
+                <div className="h-[450px] relative z-0 rounded overflow-hidden shadow">
+                  <MapContainer
+                    center={userLocation || [-0.02, 109.34]} // Pusat Kota Pontianak
+                    zoom={16}
+                    scrollWheelZoom={true}
+                    style={{ height: "100%", width: "100%" }}
+                  >
+                    <TileLayer
+                      attribution="&copy; OpenStreetMap contributors"
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+
+                    {userLocation && (
+                      <>
+                        <Marker
+                          position={userLocation}
+                          draggable={true}
+                          eventHandlers={{
+                            dragend: (e) => {
+                              const marker = e.target;
+                              const position = marker.getLatLng();
+                              const coords: [number, number] = [position.lng, position.lat];
+                              const kecamatanNama = getKecamatanNameByCoordinates(
+                                [position.lat, position.lng],
+                                batasKecamatan
+                              );
+                              setKecamatanForm(kecamatanNama);
+                              setMarkerPosition([position.lat, position.lng]);
+                              setCoordinates({
+                                type: 'Point',
+                                coordinates: coords,
+                              });
+                              setDrawType('Point');
+                            },
+                          }}
+                        >
+                          <Popup>
+                            <div className="max-w-xs p-3 rounded shadow text-sm bg-white text-gray-800">
+                              <h3 className="font-semibold text-blue-600 mb-1">📍 Lokasi Anda Saat Ini</h3>
+                              <p className="text-gray-700">
+                                Koordinat:
+                                <br />
+                                <span className="font-mono text-gray-900">
+                                  {userLocation[0].toFixed(6)}, {userLocation[1].toFixed(6)}
+                                </span>
+                              </p>
+                              <p className="text-gray-700">
+                                Kecamatan:
+                                <br />
+                                <span className="font-mono text-gray-900">
+                                  {kecamatanForm}
+                                </span>
+                              </p>
+                              <div className="mt-2 text-xs text-gray-500 italic">
+                                Data lokasi diperoleh secara otomatis, anda dapat memindahkan marker dengan menggesernya.
+                              </div>
+                            </div>
+                          </Popup>
+                        </Marker>
+                        <SetMapCenter position={userLocation} />
+                      </>
+                    )}
+
+                    <CreateMarkerPane />
+                    <CreateDrainasePane />
+
+
+                    {batasKecamatan.map((kec) => {
+                      if (!Array.isArray(kec.coordinates) || !Array.isArray(kec.coordinates[0])) {
+                        return null;
+                      }
+
+                      const latlngs: [number, number][][] = kec.coordinates.map(
+                        (ring) =>
+                          ring.map(([lng, lat]) => [lat, lng] as [number, number])
+                      );
+
+                      return (
+                        <Polygon
+                          key={kec.nama}
+                          positions={latlngs}
+                          pathOptions={{
+                            color: getColorForKecamatan(kec.nama),
+                            fillOpacity: 0.1,
+                            weight: 2,
+                          }}
+                        >
+                          <Popup>
+                            <strong>Kecamatan:</strong> {kec.nama}
+                          </Popup>
+                        </Polygon>
+                      );
+                    })}
+
+                  </MapContainer>
+                </div>
+
+                <div className="mt-6">
+                  <label className="block font-medium mb-1">Koordinat Lokasi Anda</label>
+                  <textarea
+                    value={markerPosition ? `${markerPosition[0]}, ${markerPosition[1]}` : ''}
+                    readOnly
+                    rows={5.5}
+                    className="w-full border rounded px-3 py-2 text-sm text-gray-800"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className='flex justify-center items-center'>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 mt-4 rounded hover:bg-blue-700 w-full cursor-pointer"
+              >
+                Simpan
+              </button>
+            </div>
+          </form>
         </section>
 
         <div className="hidden h-14.5 lg:block" />

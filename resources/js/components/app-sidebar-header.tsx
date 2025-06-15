@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 
 
 
@@ -20,12 +20,22 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
       id: string;
       title: string;
       body: string;
+      report_id: number;
       read_at: string | null;
       created_at: string;
     }[];
     hasUnreadNotifications: boolean;
   };
-  
+
+  const markAllNotificationsAsRead = () => {
+    router.post(route('notifications.read.all'), {}, {
+      preserveScroll: true,
+      preserveState: true,
+      only: ['notifications', 'hasUnreadNotifications'], // request hanya bagian ini
+    });
+  };
+
+
   return (
     <header className="border-sidebar-border/50 flex h-16 shrink-0 items-center justify-between gap-2 border-b px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
       {/* Kiri: Sidebar & Breadcrumbs */}
@@ -36,7 +46,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
 
       {/* Kanan: Notifikasi */}
       <div className="relative mx-4">
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={(open) => open && markAllNotificationsAsRead()}>
           <DropdownMenuTrigger asChild>
             <button className="relative p-2 rounded-full hover:bg-muted transition focus:outline-none cursor-pointer">
               <Bell className="w-5 h-5" />
@@ -50,13 +60,15 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
           <DropdownMenuContent align="end" className="w-full">
             {notifications.length > 0 ? (
               notifications.map((notif) => (
-                <DropdownMenuItem key={notif.id} className="py-2">
-                  <div className="flex flex-col gap-1">
-                    <div className="text-sm font-medium">{notif.title}</div>
-                    <div className="text-sm">{notif.body}</div>
-                    <div className="text-xs text-muted-foreground">{notif.created_at}</div>
-                  </div>
-                </DropdownMenuItem>
+                <Link href={route('report.detail', notif.report_id)}>
+                  <DropdownMenuItem key={notif.id} className="py-2 cursor-pointer">
+                    <div className="flex flex-col gap-1">
+                      <div className="text-sm font-medium">{notif.title}</div>
+                      <div className="text-sm">{notif.body}</div>
+                      <div className="text-xs text-muted-foreground">{notif.created_at}</div>
+                    </div>
+                  </DropdownMenuItem>
+                </Link>
               ))
             ) : (
               <DropdownMenuItem disabled className="py-2 text-center text-sm text-muted-foreground">

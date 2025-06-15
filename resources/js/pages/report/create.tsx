@@ -17,6 +17,8 @@ import CreateDrainasePane from '@/components/preview/CreateDrainasePane';
 import CreateMarkerPane from '@/components/preview/CreateMarkerPane';
 import SetMapCenter from '@/components/preview/SetMapCenter';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
+import { point, polygon } from '@turf/helpers';
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -72,6 +74,12 @@ type Props = {
   }[];
 };
 
+interface BatasKecamatan {
+  id: number;
+  nama: string;
+  coordinates: [number, number][][];
+}
+
 
 export default function CreateReport({ lines, selectedKecamatan = 'all', kecamatanList, batasKecamatan }: Props) {
   const [name, setName] = useState('');
@@ -104,8 +112,6 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
   };
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-
-  console.log("userLocation:", userLocation);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -144,12 +150,46 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
   const [drawType, setDrawType] = useState<'LineString' | 'Polygon' | 'Circle' | 'Point' | null>(null);
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
 
+  
+
   // State filter kecamatan, default dari prop backend
+  const [kecamatanForm, setKecamatanForm] = useState<string>('');
   const [kecamatan, setKecamatan] = useState<string>(selectedKecamatan ?? 'all');
 
+  console.log(kecamatan)
 
-  // Inertia form helper untuk submit filter
-  const { get } = useForm();
+  function getKecamatanNameByCoordinates(
+    coords: [number, number],
+    batasKecamatan: BatasKecamatan[]
+  ): string {
+    const userPoint = point([coords[1], coords[0]]); // lng, lat
+
+    for (const kec of batasKecamatan) {
+      const polygonCoords: [number, number][][] = kec.coordinates.map(ring =>
+        ring.map(([lng, lat]: [number, number]) => [lng, lat])
+      );
+
+      const poly = polygon([polygonCoords[0]]);
+      if (booleanPointInPolygon(userPoint, poly)) {
+        return kec.nama;
+      }
+    }
+
+    return "Tidak diketahui";
+  }
+
+  useEffect(() => {
+    if (markerPosition && batasKecamatan.length > 0) {
+      const kecamatanNama = getKecamatanNameByCoordinates(
+        [markerPosition[0], markerPosition[1]], // [lat, lng]
+        batasKecamatan
+      );
+      setKecamatanForm(kecamatanNama);
+      setKecamatan(kecamatanNama);
+    }
+  }, [markerPosition, batasKecamatan]);
+
+
 
   // Data kecamatan unik untuk dropdown (ambil dari lines)
   const kecamatanOptions = Array.from(

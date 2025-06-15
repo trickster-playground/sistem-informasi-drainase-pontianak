@@ -135,24 +135,29 @@ class ReportController extends Controller
   public function store(Request $request)
   {
 
+    $isGuest = $request->user() === null;
+    $user = $request->user();
+
     $validated = $request->validate([
       'name' => 'required|string|max:255',
       'description' => 'required|string|max:255',
       'location' => 'required|string|max:255',
       'category' => 'required|string|max:255',
-      'kecamatan' => 'required|string',
+      'kecamatan' => 'required|string|not_in:all,All,ALL',
       'type' => 'required|string|in:LineString,Polygon,Circle,Point',
       'coordinates' => 'required|array',
-      'file' => 'required|file|mimes:jpg,jpeg,png|max:2048', // jika ada file
+      'file' => 'required|file|mimes:jpg,jpeg,png|max:2048',
+
+      // Validasi tambahan untuk guest
+      'reporterName' => $isGuest ? 'required|string|max:255' : 'nullable',
+      'reporterContact' => $isGuest ? 'required|string|max:255' : 'nullable',
     ]);
 
     $kecamatan = Kecamatan::where('nama', $validated['kecamatan'])->first();
-
-    // Simpan file ke storage dan dapatkan path-nya
-    $path = $request->file('file')->store('reports', 'public'); // simpan di storage/app/public/reports
+    $path = $request->file('file')->store('reports', 'public');
 
     $report = Report::create([
-      'user_id' => $request->user()->id, // Asumsikan user sudah login
+      'user_id' => $user?->id,
       'title' => $validated['name'],
       'description' => $validated['description'],
       'location_name' => $validated['location'],
@@ -161,16 +166,29 @@ class ReportController extends Controller
       'type' => $validated['type'],
       'coordinates' => $validated['coordinates'],
       'attachments' => $path,
+      'reporter_name' => $isGuest ? $validated['reporterName'] : null,
+      'reporter_contact' => $isGuest ? $validated['reporterContact'] : null,
     ]);
 
-    $admins = User::where('role', 'admin')
-      ->where('id', '!=', $request->user()->id) // kecualikan admin pembuat
-      ->get();
+    $user = $request->user();
 
-    Notification::send($admins, new NewReportNotification($report));
+    if (!$user || $user->role !== 'admin') {
+      // Ambil semua admin
+      $admins = User::where('role', 'admin')
+        ->when($user, fn($query) => $query->where('id', '!=', $user->id))
+        ->get();
 
-    return redirect()->route('report')->with('success', 'Data Report berhasil ditambahkan.');
+      Notification::send($admins, new NewReportNotification($report));
+    }
+
+    if ($request->user()) {
+      return redirect()->route('report')->with('success', 'Data Report berhasil ditambahkan.');
+    } else {
+      return redirect()->route('home')->with('success', 'Data Report berhasil dikirim.');
+    }
   }
+
+
 
   public function show(Request $request, $id)
   {
@@ -290,9 +308,13 @@ class ReportController extends Controller
 
   public function destroy(Report $report)
   {
-    // Pastikan user yang menghapus adalah pemilik laporan
-    if (Auth::user()->id !== $report->user_id) {
-      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menghapus laporan ini.');
+    $user = Auth::user();
+
+    // Jika user bukan admin dan bukan pemilik laporan
+    if ($user->role !== 'Admin') {
+      if ($report->user_id === null || $user->id !== $report->user_id) {
+        return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menghapus laporan ini.');
+      }
     }
 
     // Hapus file lampiran jika ada
