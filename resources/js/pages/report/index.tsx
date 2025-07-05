@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { SharedData, type BreadcrumbItem } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import * as turf from '@turf/turf';
 
 import customIconUser from '/public/assets/icons/marker_user.png';
 import customIconReport from '/public/assets/icons/marker_event.png';
@@ -37,10 +38,13 @@ import { Eye, SquarePen, Trash } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
+import axios from 'axios';
+import LegendControl from '@/components/preview/LegendControl';
+
 const breadcrumbs: BreadcrumbItem[] = [
   {
     title: 'Report',
-    href: '/report',
+    href: '/report'
   },
 ];
 
@@ -49,17 +53,11 @@ type Line = {
   name: string;
   coordinates: [number, number][];
   fungsi?: string;
+  status?: string;
   kecamatan?: string | null;
 };
 
-type rawanBanjir = {
-  id: number;
-  name: string;
-  coordinates: [number, number]; // [lng, lat]
-  radius: number;
-  fungsi?: string;
-  kecamatan?: string | null;
-};
+
 
 type Props = {
   lines: Line[];
@@ -69,7 +67,7 @@ type Props = {
     coordinates: [number, number][][];
   }[];
   selectedKecamatan?: string | null;
-  rawanBanjir: rawanBanjir[];
+
   reports: Reports[];
 };
 
@@ -94,6 +92,10 @@ type Reports = {
     name: string;
     email: string
   };
+  drainase?: {
+    id: number;
+    name?: string;
+  }[];
 };
 
 type ReportsPagination = {
@@ -107,11 +109,13 @@ type ReportsPagination = {
   }[];
 };
 
-export default function ReportDashboard({ lines, selectedKecamatan, batasKecamatan, rawanBanjir }: Props) {
+
+export default function ReportDashboard({ lines, selectedKecamatan, batasKecamatan }: Props) {
   const { auth } = usePage<SharedData>().props;
 
   // Fetching reports data from the page props
   const { reports } = usePage<{ reports: ReportsPagination }>().props;
+
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
@@ -131,8 +135,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
     iconAnchor: [iconSize[0] / 2, iconSize[1]],
     popupAnchor: [0, -iconSize[1]],
   });
-
-
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -173,9 +175,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
     ? lines
     : lines.filter((line) => line.kecamatan === kecamatan);
 
-  const filteredRawanBanjir = kecamatan === 'all'
-    ? rawanBanjir
-    : rawanBanjir.filter(item => item.kecamatan === kecamatan);
 
   // Data kecamatan unik untuk dropdown (ambil dari lines)
   const kecamatanOptions = Array.from(
@@ -217,7 +216,7 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                 attribution='&copy; OpenStreetMap contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-
+              <LegendControl />
               <CreateMarkerPane />
               <CreateDrainasePane />
               <CreateCirclePane />
@@ -257,7 +256,6 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                       <div className="text-xs text-gray-500 border-t pt-2 mt-2">
                         <p><span className="font-medium text-gray-700">📍 Lokasi:</span> {report.location_name}</p>
                         <p><span className="font-medium text-gray-700">📌 Kecamatan:</span> {report.kecamatan?.nama || '-'}</p>
-                        <p><span className="font-medium text-gray-700">🗂️ Kategori:</span> {report.category}</p>
                         <p>
                           <span className="font-medium text-gray-700">📊 Status:</span>{' '}
                           <span className={
@@ -273,51 +271,86 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                         </p>
                       </div>
                       <div className='flex gap-2 items-center justify-start'>
-                        {auth.user?.id === report.user?.id && (
-                          <Button
-                            onClick={() => router.visit(`/report/${report.id}/edit`)}
-                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
-                            title="Edit"
-                            variant={"outline"}
-                          >
-                            <SquarePen className="w-4 h-4" />
-                          </Button>
+                        {report.status !== 'Fixed' && (
+                          <>
+                            <Button
+                              onClick={() => router.visit(`/report/${report.id}/edit`)}
+                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                              title="Edit"
+                              variant="outline"
+                            >
+                              <SquarePen className="w-4 h-4" />
+                            </Button>
+
+                            <Button
+                              onClick={() => handleDelete(report.id)}
+                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                              title="Hapus"
+                              variant="outline"
+                            >
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </>
                         )}
-                        {auth.user?.id === report.user?.id && (
-                          <Button
-                            onClick={() => handleDelete(report.id)}
-                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
-                            title="Hapus"
-                            variant={"outline"}
-                          >
-                            <Trash className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {auth.user?.role === 'Admin' && (
-                          <Button
-                            onClick={() => router.visit(`/report/${report.id}/detail`)}
-                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-green-500 hover:bg-green-800"
-                            title="Show Detail"
-                            variant={"outline"}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        )}
-                        {auth.user?.role === 'Admin' && (
-                          <Button
-                            onClick={() => handleDelete(report.id)}
-                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
-                            title="Hapus"
-                            variant={"outline"}
-                          >
-                            <Trash className="w-4 h-4" />
-                          </Button>
-                        )}
+                        <Button
+                          onClick={() => router.visit(`/report/${report.id}/detail`)}
+                          className="text-white hover:text-white/80 transition-colors cursor-pointer bg-green-500 hover:bg-green-800"
+                          title="Show Detail"
+                          variant={"outline"}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   </Popup>
                 </Marker>
               ))}
+
+              {lines.map((item, idx) => {
+                const latLngCoordinates: [number, number][] = (Array.isArray(item.coordinates)
+                  ? (item.coordinates as [number, number][])
+                  : []
+                ).map(([lng, lat]) => [lat, lng]);
+                return (
+                  <Polyline
+                    key={idx}
+                    positions={latLngCoordinates}
+                    pathOptions={{ color: item.status === 'Terdapat Masalah' ? 'red' : 'blue', weight: 2 }}
+                  >
+                    <Popup>
+                      <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
+                        <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {item.name}</h3>
+                        <div className="space-y-1">
+                          <p><span className="font-medium">Fungsi:</span> {item.fungsi || '-'}</p>
+                          <p><span className="font-medium">Kecamatan:</span> {item.kecamatan || '-'}</p>
+                          <p><span className="font-medium">Status Drainase:</span> {item.status || '-'}</p>
+                          <div className='flex gap-2 items-center justify-start'>
+                            <Button
+                              onClick={() => router.visit(`/admin/drainase/${item.id}/edit`)}
+                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                              title="Edit"
+                              variant={"outline"}
+                            >
+                              <SquarePen className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleDelete(item.id)}
+                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                              title="Hapus"
+                              variant={"outline"}
+                            >
+                              <Trash className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 italic">
+                          Jalur drainase yang terdeteksi
+                        </div>
+                      </div>
+                    </Popup>
+                  </Polyline>
+                );
+              })}
 
             </MapContainer>
           </section>
@@ -330,15 +363,8 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                   <TableRow>
                     <TableHead>No</TableHead>
                     <TableHead>Nama Laporan</TableHead>
-                    {auth.user?.role === 'Admin' && (
-                      <TableHead>Nama Pelapor</TableHead>
-                    )}
-                    {auth.user?.role === 'Admin' && (
-                      <TableHead>Email</TableHead>
-                    )}
-                    <TableHead>Lokasi</TableHead>
-                    <TableHead>Kategori</TableHead>
                     <TableHead>Kecamatan</TableHead>
+                    <TableHead>Drainase Dilaporkan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Option</TableHead>
                   </TableRow>
@@ -348,15 +374,21 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                     <TableRow key={item.id} className="hover:bg-muted transition-colors cursor-pointer">
                       <TableCell>{(reports.current_page - 1) * 10 + index + 1}</TableCell>
                       <TableCell>{item.title}</TableCell>
-                      {auth.user?.role === 'Admin' && (
-                        <TableCell>{item.user?.name || item.reporter_name}</TableCell>
-                      )}
-                      {auth.user?.role === 'Admin' && (
-                        <TableCell>{item.user?.email || item.reporter_contact}</TableCell>
-                      )}
-                      <TableCell>{item.location_name}</TableCell>
-                      <TableCell>{item.category || '-'}</TableCell>
                       <TableCell>{item.kecamatan?.nama || '-'}</TableCell>
+                      <TableCell>
+                        <ul className="space-y-1">
+                          {(item.drainase ?? []).length > 0 ? (
+                            (item.drainase ?? []).map(detail => (
+                              <li key={detail.id} className="flex items-center gap-2">
+                                <span className="font-medium">{detail.name || '-'}</span>
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-gray-400 italic">-</li>
+                          )}
+                        </ul>
+                      </TableCell>
+
                       <TableCell>
                         <Badge
                           className={cn({
@@ -371,36 +403,43 @@ export default function ReportDashboard({ lines, selectedKecamatan, batasKecamat
                       </TableCell>
                       <TableCell>
                         <div className='flex gap-2 items-center justify-start'>
-                          {auth.user?.id === item.user?.id && (
-                            <Button
-                              onClick={() => router.visit(`/report/${item.id}/edit`)}
-                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
-                              title="Edit"
-                              variant={"outline"}
-                            >
-                              <SquarePen className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {auth.user?.role === 'Admin' && (
-                            <Button
-                              onClick={() => router.visit(`/report/${item.id}/detail`)}
-                              className="text-white hover:text-white/80 transition-colors cursor-pointer bg-green-500 hover:bg-green-800"
-                              title="Show Detail"
-                              variant={"outline"}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          )}
+
+                          {/** Tombol Show Detail - hanya Admin */}
                           <Button
-                            onClick={() => handleDelete(item.id)}
-                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
-                            title="Hapus"
-                            variant={"outline"}
+                            onClick={() => router.visit(`/report/${item.id}/detail`)}
+                            className="text-white hover:text-white/80 transition-colors cursor-pointer bg-green-500 hover:bg-green-800"
+                            title="Show Detail"
+                            variant="outline"
                           >
-                            <Trash className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                           </Button>
+
+                          {/** Tombol Edit & Hapus - hanya kalau BELUM Fixed & Admin atau Pemilik */}
+                          {(item.status !== 'Fixed' && item.status !== 'In Progress') && (
+                            <>
+                              <Button
+                                onClick={() => router.visit(`/report/${item.id}/edit`)}
+                                className="text-white hover:text-white/80 transition-colors cursor-pointer bg-blue-500 hover:bg-blue-800"
+                                title="Edit"
+                                variant="outline"
+                              >
+                                <SquarePen className="w-4 h-4" />
+                              </Button>
+
+                              <Button
+                                onClick={() => handleDelete(item.id)}
+                                className="text-white hover:text-white/80 transition-colors cursor-pointer bg-red-500 hover:bg-red-800"
+                                title="Hapus"
+                                variant="outline"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>

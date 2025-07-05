@@ -13,7 +13,7 @@ return new class extends Migration
   {
     Schema::create('reports', function (Blueprint $table) {
       $table->id();
-      $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+      $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
 
       // Informasi laporan
       $table->string('title');
@@ -34,6 +34,10 @@ return new class extends Migration
 
       // Kategori laporan
       $table->string('category')->nullable(); // contoh: "Drainase", "Penerangan", dsb
+
+      // Tambah kolom nama & kontak pelapor
+      $table->string('reporter_name')->nullable();
+      $table->string('reporter_contact')->nullable();
 
       $table->timestamps();
     });

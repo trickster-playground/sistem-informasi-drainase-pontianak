@@ -16,6 +16,7 @@ class Report extends Model
     "category",
     "status",
     "type",
+    "drainase_id",
     "reporter_name",
     "reporter_contact",
     "attachments",
@@ -35,6 +36,17 @@ class Report extends Model
 
   public function kecamatan()
   {
-    return $this->belongsTo(Kecamatan::class);
+    return $this->belongsTo(Kecamatan::class, 'kecamatan_id');
+  }
+
+  public function drainase()
+  {
+    return $this->belongsToMany(Drainase::class, 'report_details')
+      ->withPivot([
+        'id',           // << ini penting!
+        'status',
+        'coordinates',
+        'attachments'
+      ]);
   }
 }

@@ -42,4 +42,17 @@ class DrainaseController extends Controller
 
     return response()->json($drainase->values());
   }
+
+  public function updateStatus(Request $request, $id)
+  {
+    $request->validate([
+      'status' => 'required|in:Baik,Terdapat Masalah',
+    ]);
+
+    $drainase = Drainase::findOrFail($id);
+    $drainase->status = $request->status;
+    $drainase->save();
+
+    return response()->json(['message' => 'Status updated.']);
+  }
 }

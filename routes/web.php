@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\AdminDrainaseController;
-use App\Http\Controllers\AdminRawanBanjirController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DrainaseController;
 use App\Http\Controllers\HomeController;
@@ -21,7 +20,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 
 // Admin Middleware
-Route::middleware([AdminMiddleware::class])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
   // Drainase Routes
   Route::get('/admin/drainase', [AdminDrainaseController::class, 'index'])->name('admin.drainase.index');
@@ -31,19 +30,14 @@ Route::middleware([AdminMiddleware::class])->group(function () {
   Route::put('/admin/drainase/{drainase}/edit', [AdminDrainaseController::class, 'update'])->name('admin.drainase.update');
   Route::delete('/admin/drainase/{drainase}', [AdminDrainaseController::class, 'destroy'])->name('admin.drainase.destroy');
 
-  // Rawan Banjir Routes
-  Route::get('/admin/rawan-banjir', [AdminRawanBanjirController::class, 'index'])->name('admin.rawan-banjir.index');
-  Route::get('/admin/rawan-banjir/create', [AdminRawanBanjirController::class, 'create'])->name('admin.rawan-banjir.create');
-  Route::post('/admin/rawan-banjir/create', [AdminRawanBanjirController::class, 'store'])->name('admin.rawan-banjir.store');
-  Route::get('/admin/rawan-banjir/{rawanbanjir}/edit', [AdminRawanBanjirController::class, 'show'])->name('admin.rawan-banjir.show');
-  Route::put('/admin/rawan-banjir/{rawanbanjir}/edit', [AdminRawanBanjirController::class, 'update'])->name('admin.rawan-banjir.update');
-  Route::delete('/admin/rawan-banjir/{rawanbanjir}', [AdminRawanBanjirController::class, 'destroy'])->name('admin.rawan-banjir.destroy');
-
   Route::get('/report/{report}/detail', [ReportController::class, 'detail'])->name('report.detail');
   Route::put('/report/{report}/detail', [ReportController::class, 'updateStatus'])->name('report.detail.update');
+  Route::put('/report-details/{id}/update', [ReportController::class, 'updateReportDetails'])->name('report.details.update');
 });
 
 Route::get('/drainase/nearby', [DrainaseController::class, 'nearby']);
+Route::post('/drainase/{id}/update-status', [DrainaseController::class, 'updateStatus']);
+
 
 // User Auth Routes
 Route::middleware(['auth'])->group(function () {

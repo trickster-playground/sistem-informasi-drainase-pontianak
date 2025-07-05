@@ -2,7 +2,7 @@ import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { SharedData, type BreadcrumbItem } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { Icon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -11,27 +11,27 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  PieChart,
-  Pie,
-  Cell,
   ResponsiveContainer,
 } from 'recharts';
 
 import customIconReport from '/public/assets/icons/marker_event.png';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import LegendControl from '@/components/preview/LegendControl';
+
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Dashboard', href: '/dashboard' }];
 
 
 type DashboardProps = {
   totalDrainase: number;
-  totalRawanBanjir: number;
   totalReports: number;
+  totalDrainaseBermasalah: number;
   handledReports: number;
   reportByCategory: { category: string; total: number }[];
   reportByStatus: { status: string; total: number }[];
   latestReports: any[];
   drainase: any[];
-  rawanBanjir: any[];
   reportMarkers: any[];
 };
 
@@ -39,14 +39,11 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function Dashboard({
   totalDrainase,
-  totalRawanBanjir,
   totalReports,
+  totalDrainaseBermasalah,
   handledReports,
-  reportByCategory,
   reportByStatus,
   latestReports,
-  drainase,
-  rawanBanjir,
   reportMarkers,
 }: DashboardProps) {
   const customIcon = new Icon({
@@ -56,7 +53,7 @@ export default function Dashboard({
     popupAnchor: [0, -32],
   });
   const { auth } = usePage<SharedData>().props;
-
+  dayjs.extend(relativeTime);
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="Dashboard" />
@@ -71,8 +68,8 @@ export default function Dashboard({
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Titik Rawan Banjir</p>
-              <h2 className="text-2xl font-bold">{totalRawanBanjir}</h2>
+              <p className="text-sm text-muted-foreground">Total Drainase Bermasalah</p>
+              <h2 className="text-2xl font-bold">{totalDrainaseBermasalah}</h2>
             </CardContent>
           </Card>
           <Card>
@@ -104,61 +101,41 @@ export default function Dashboard({
               </ResponsiveContainer>
             </CardContent>
           </Card>
+          {/* Laporan terbaru */}
           <Card>
             <CardContent className="p-4">
-              <h3 className="font-semibold mb-2">Kategori Laporan</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={reportByCategory}
-                    dataKey="total"
-                    nameKey="category"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
-                  >
-                    {reportByCategory.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <h3 className="font-semibold mb-4">Laporan Terbaru</h3>
+              <div className="space-y-3">
+                {latestReports.map((report) => (
+                  <div key={report.id} className="border-b pb-2">
+                    <p className="font-medium">{report.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {report.kecamatan?.nama} – {report.status} – {dayjs(report.updated_at).fromNow()}
+                    </p>
+                  </div>
+                ))}
+                {latestReports.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Belum ada laporan.</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
         {auth.user.role === 'Admin' && (
           <>
-            {/* Laporan terbaru */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4">Laporan Terbaru</h3>
-                <div className="space-y-3">
-                  {latestReports.map((report) => (
-                    <div key={report.id} className="border-b pb-2">
-                      <p className="font-medium">{report.title}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {report.kecamatan?.nama} – {report.status} – {report.updated_at}
-                      </p>
-                    </div>
-                  ))}
-                  {latestReports.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Belum ada laporan.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Peta */}
             <Card>
               <CardContent className="p-4">
-                <h3 className="font-semibold mb-2">Peta Sebaran</h3>
+                <h3 className="font-semibold mb-2">Peta Laporan Masalah Drainase</h3>
                 <div className="h-[500px] w-full rounded overflow-hidden">
                   <MapContainer center={[-0.0263, 109.3425]} zoom={12} className="h-full w-full" scrollWheelZoom>
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       attribution="&copy; OpenStreetMap contributors"
+                    />
+                    <LegendControl
+                      showUser={false}
+                      showDrainase={false}
                     />
                     {/* Marker laporan */}
                     {reportMarkers.map((report) => (
@@ -174,8 +151,7 @@ export default function Dashboard({
 
                             <div className="text-xs text-gray-500 border-t pt-2 mt-2">
                               <p><span className="font-medium text-gray-700">📍 Lokasi:</span> {report.location_name}</p>
-                              <p><span className="font-medium text-gray-700">📌 Kecamatan:</span> {report.kecamatan?.nama || '-'}</p>
-                              <p><span className="font-medium text-gray-700">🗂️ Kategori:</span> {report.category}</p>
+                              <p><span className="font-medium text-gray-700">📌 Kecamatan:</span> {report.kecamatan}</p>
                               <p>
                                 <span className="font-medium text-gray-700">📊 Status:</span>{' '}
                                 <span className={
@@ -193,27 +169,6 @@ export default function Dashboard({
                           </div>
                         </Popup>
                       </Marker>
-                    ))}
-                    {/* Circle rawan banjir */}
-                    {rawanBanjir.map((item) => (
-                      <Circle
-                        key={`banjir-${item.id}`}
-                        center={[item.coordinates[1], item.coordinates[0]]}
-                        radius={item.radius}
-                        pathOptions={{ color: 'red', fillOpacity: 0.4 }}
-                      >
-                        <Popup>
-                          <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
-                            <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
-                            <div className="space-y-1">
-                              <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
-                            </div>
-                            <div className="mt-2 text-xs text-red-500 italic">
-                              Area dengan potensi rawan banjir
-                            </div>
-                          </div>
-                        </Popup>
-                      </Circle>
                     ))}
                   </MapContainer>
                 </div>

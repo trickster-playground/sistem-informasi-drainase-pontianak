@@ -6,10 +6,12 @@ use App\Models\Drainase;
 use App\Models\Kecamatan;
 use App\Models\RawanBanjir;
 use App\Models\Report;
+use App\Models\ReportDetail;
 use App\Models\User;
 use App\Notifications\NewReportNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
@@ -34,6 +36,7 @@ class ReportController extends Controller
         'name' => $item->name,
         'coordinates' => $item->coordinates,
         'fungsi' => $item->fungsi,
+        'status' => $item->status,
         'kecamatan' => $item->kecamatan->nama ?? null,
       ];
     });
@@ -47,30 +50,12 @@ class ReportController extends Controller
       ];
     });
 
-    $queryBanjir = RawanBanjir::with('kecamatan');
-
-    if ($kecamatanFilter) {
-      $queryBanjir->whereHas('kecamatan', function ($q) use ($kecamatanFilter) {
-        $q->where('nama', $kecamatanFilter);
-      });
-    }
-
-    $rawanBanjir = $queryBanjir->get()->map(function ($item) {
-      return [
-        'id' => $item->id,
-        'name' => $item->name,
-        'coordinates' => $item->coordinates,
-        'radius' => $item->radius,
-        'kecamatan' => $item->kecamatan->nama ?? null, // jika relasi
-      ];
-    });
-
     $user = Auth::user();
 
     if ($user->role !== 'Admin') {
       // Jika bukan admin, filter laporan berdasarkan user
       $reports = Report::with(['kecamatan', 'user'])
-        ->where('user_id', $user->id)
+        ->where('user_id', null)
         ->latest()
         ->paginate(10);
     } else {
@@ -82,7 +67,6 @@ class ReportController extends Controller
 
     return Inertia::render('report/index', [
       'lines' => $lines,
-      'rawanBanjir' => $rawanBanjir,
       'selectedKecamatan' => $kecamatanFilter,
       'batasKecamatan' => $batasKecamatan,
       'reports' => $reports,
@@ -135,14 +119,15 @@ class ReportController extends Controller
   public function store(Request $request)
   {
 
+
     $isGuest = $request->user() === null;
     $user = $request->user();
 
     $validated = $request->validate([
       'name' => 'required|string|max:255',
       'description' => 'required|string|max:255',
-      'location' => 'required|string|max:255',
-      'category' => 'required|string|max:255',
+      'location' => 'nullable|string|max:255',
+      'category' => 'nullable|string|max:255',
       'kecamatan' => 'required|string|not_in:all,All,ALL',
       'type' => 'required|string|in:LineString,Polygon,Circle,Point',
       'coordinates' => 'required|array',
@@ -151,6 +136,10 @@ class ReportController extends Controller
       // Validasi tambahan untuk guest
       'reporterName' => $isGuest ? 'required|string|max:255' : 'nullable',
       'reporterContact' => $isGuest ? 'required|string|max:255' : 'nullable',
+
+      // Validasi ID Drainase
+      'drainase_id' => 'array',
+      'drainase_id.*' => 'integer|exists:drainase,id',
     ]);
 
     $kecamatan = Kecamatan::where('nama', $validated['kecamatan'])->first();
@@ -170,6 +159,18 @@ class ReportController extends Controller
       'reporter_contact' => $isGuest ? $validated['reporterContact'] : null,
     ]);
 
+    if (!empty($validated['drainase_id'])) {
+      $drainaseIds = is_array($validated['drainase_id'])
+        ? $validated['drainase_id']
+        : [$validated['drainase_id']];
+
+      $report->drainase()->attach($drainaseIds);
+
+      Drainase::whereIn('id', $drainaseIds)
+        ->update(['status' => 'Terdapat Masalah']);
+    }
+
+
     $user = $request->user();
 
     if (!$user || $user->role !== 'admin') {
@@ -182,9 +183,9 @@ class ReportController extends Controller
     }
 
     if ($request->user()) {
-      return redirect()->route('report')->with('success', 'Data Report berhasil ditambahkan.');
+      return Inertia::location(route('report'));
     } else {
-      return redirect()->route('home')->with('success', 'Data Report berhasil dikirim.');
+      return Inertia::location(route('home'));
     }
   }
 
@@ -195,10 +196,9 @@ class ReportController extends Controller
 
     $report = Report::findOrFail($id);
 
-    // Pastikan user yang menghapus adalah pemilik laporan
-    if (Auth::user()->id !== $report->user_id) {
-      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk melihat laporan ini.');
-    }
+    $report->load('drainase', 'kecamatan');
+
+    $selectedDrainaseIds = $report->drainase->pluck('id')->toArray();
 
     $point = [
       [
@@ -253,45 +253,37 @@ class ReportController extends Controller
       'kecamatanList' => $allKecamatan,
       'batasKecamatan' => $batasKecamatan,
       'point' => $point,
+      'selectedDrainaseIds' => $selectedDrainaseIds,
     ]);
   }
 
   public function update(Request $request, $id)
   {
-
     $report = Report::findOrFail($id);
-
-    // Pastikan user yang menghapus adalah pemilik laporan
-    if (Auth::user()->id !== $report->user_id) {
-      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk update laporan ini.');
-    }
 
     $validated = $request->validate([
       'name' => 'required|string|max:255',
       'description' => 'required|string|max:255',
-      'location' => 'required|string|max:255',
-      'category' => 'required|string|max:255',
+      'location' => 'string|max:255',
+      'category' => 'string|max:255',
       'kecamatan' => 'nullable|string',
       'type' => 'required|string|in:LineString,Polygon,Circle,Point',
       'coordinates' => 'required|array',
-      'file' => 'nullable|file|mimes:jpg,jpeg,png|max:2048', // opsional saat update
+      'file' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+      'selectedDrainaseIds' => 'nullable|array',
+      'selectedDrainaseIds.*' => 'integer|exists:drainase,id',
     ]);
 
     $kecamatan = Kecamatan::where('nama', $validated['kecamatan'])->first();
 
-    // Jika ada file baru di-upload
     if ($request->hasFile('file')) {
-      // Hapus file lama jika ada
       if ($report->attachments) {
         Storage::disk('public')->delete($report->attachments);
       }
-
-      // Simpan file baru
       $path = $request->file('file')->store('reports', 'public');
       $report->attachments = $path;
     }
 
-    // Update data lainnya
     $report->update([
       'title' => $validated['name'],
       'description' => $validated['description'],
@@ -300,26 +292,63 @@ class ReportController extends Controller
       'kecamatan_id' => $kecamatan?->id,
       'type' => $validated['type'],
       'coordinates' => $validated['coordinates'],
-      // 'attachments' sudah ditangani di atas jika ada file baru
     ]);
+
+    if (array_key_exists('selectedDrainaseIds', $validated)) {
+      $newIds = $validated['selectedDrainaseIds'] ?? [];
+      $currentIds = $report->drainase()->pluck('drainase.id')->toArray();
+
+      // Cari ID drainase yang dihapus
+      $removedIds = array_diff($currentIds, $newIds);
+      if (!empty($removedIds)) {
+        Drainase::whereIn('id', $removedIds)->update(['status' => 'Baik']);
+      }
+
+      // Set status drainase yang baru dipilih
+      $addedIds = array_diff($newIds, $currentIds);
+      if (!empty($addedIds)) {
+        Drainase::whereIn('id', $addedIds)->update(['status' => 'Terdapat Masalah']);
+      }
+
+      // Sync ke tabel pivot
+      sort($newIds);
+      sort($currentIds);
+      if ($newIds !== $currentIds) {
+        $report->drainase()->sync($newIds);
+      }
+    }
+
 
     return redirect()->route('report')->with('success', 'Data Report berhasil diperbarui.');
   }
+
 
   public function destroy(Report $report)
   {
     $user = Auth::user();
 
-    // Jika user bukan admin dan bukan pemilik laporan
     if ($user->role !== 'Admin') {
       if ($report->user_id === null || $user->id !== $report->user_id) {
         return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menghapus laporan ini.');
       }
     }
 
-    // Hapus file lampiran jika ada
+    // Ambil ID drainase yang terkait
+    $drainaseIds = $report->drainase()->pluck('drainase.id')->toArray();
+
+    // Hapus file jika ada
     if ($report->attachments) {
       Storage::disk('public')->delete($report->attachments);
+    }
+
+    // Hapus relasi pivot (optional, tergantung migrasi onDelete cascade atau tidak)
+    $report->drainase()->detach();
+
+    // Update status drainase menjadi 'Baik'
+    if (!empty($drainaseIds)) {
+      Drainase::whereIn('id', $drainaseIds)
+        ->whereDoesntHave('reports') // hanya jika tidak lagi terhubung ke laporan lain
+        ->update(['status' => 'Baik']);
     }
 
     // Hapus laporan
@@ -328,20 +357,21 @@ class ReportController extends Controller
     return redirect()->route('report')->with('success', 'Laporan berhasil dihapus.');
   }
 
+
   public function detail(Request $request, $id)
   {
+    // Pastikan user yang menghapus adalah pemilik laporan
 
     $report = Report::findOrFail($id);
 
-    // Pastikan user yang menghapus adalah pemilik laporan
-    if (Auth::user()->role !== 'Admin') {
-      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk melihat laporan ini.');
-    }
+    $selectedDrainaseIds = $report->drainase->pluck('id')->toArray();
 
     $point = [
       [
         'id' => $report->id,
         'name' => $report->title,
+        'reporter_name' => $report->reporter_name,
+        'reporter_contact' => $report->reporter_contact,
         'type' => $report->type,
         'description' => $report->description,
         'category' => $report->category,
@@ -350,6 +380,7 @@ class ReportController extends Controller
         'kecamatan' => $report->kecamatan?->nama,
         'status' => $report->status,
         'coordinates' => $report->coordinates,
+        'report_details' => $report->drainase
       ]
     ];
 
@@ -392,6 +423,8 @@ class ReportController extends Controller
       'kecamatanList' => $allKecamatan,
       'batasKecamatan' => $batasKecamatan,
       'point' => $point,
+      'selectedDrainaseIds' => $selectedDrainaseIds,
+      'reports' => $report,
     ]);
   }
 
@@ -399,11 +432,6 @@ class ReportController extends Controller
   {
 
     $report = Report::findOrFail($id);
-
-    // Pastikan user yang menghapus adalah pemilik laporan
-    if (Auth::user()->role !== 'Admin') {
-      return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk melihat laporan ini.');
-    }
 
     $validated = $request->validate([
       'status' => 'required|string|in:Pending,In Progress,Fixed,Aborted',
@@ -415,5 +443,78 @@ class ReportController extends Controller
     ]);
 
     return redirect()->route('report')->with('success', 'Data Report berhasil diperbarui.');
+  }
+
+  public function updateReportDetails(Request $request, $id)
+  {
+    $validated = $request->validate([
+      'coordinates' => 'required|array',
+      'coordinates.*' => 'numeric',
+      'file' => 'required|image|max:2048',
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+      // 1️⃣ Ambil detail yang dipilih
+      $reportDetail = ReportDetail::findOrFail($id);
+      $drainaseId = $reportDetail->drainase_id;
+
+      // 2️⃣ Simpan file attachment kalau ada
+      $attachmentPath = null;
+      if ($request->hasFile('file')) {
+        $attachmentPath = $request->file('file')->store('attachments/report_details', 'public');
+      }
+
+      // 3️⃣ Ambil SEMUA ReportDetail untuk drainase ini yg status = Pending
+      $pendingDetails = ReportDetail::where('drainase_id', $drainaseId)
+        ->where('status', 'Pending')
+        ->get();
+
+      foreach ($pendingDetails as $detail) {
+        $detail->status = 'Fixed';
+
+        if ($request->has('coordinates')) {
+          $detail->coordinates = $validated['coordinates'];
+        }
+
+        if ($attachmentPath) {
+          // Gantikan attachment
+          $detail->attachments = $attachmentPath;
+        }
+
+        $detail->save();
+      }
+
+      // 4️⃣ Update Drainase → Baik
+      Drainase::where('id', $drainaseId)
+        ->update(['status' => 'Baik']);
+
+      // 5️⃣ Ambil SEMUA report yang punya detail dengan drainase ini
+      $reportIds = ReportDetail::where('drainase_id', $drainaseId)
+        ->pluck('report_id')
+        ->unique()
+        ->toArray();
+
+      // 6️⃣ Periksa setiap report
+      foreach ($reportIds as $reportId) {
+        $totalDetails = ReportDetail::where('report_id', $reportId)->count();
+        $fixedDetails = ReportDetail::where('report_id', $reportId)
+          ->where('status', 'Fixed')
+          ->count();
+
+        $newStatus = ($totalDetails === $fixedDetails) ? 'Fixed' : 'In Progress';
+
+        Report::where('id', $reportId)
+          ->update(['status' => $newStatus]);
+      }
+
+      DB::commit();
+
+      return redirect()->route('report')->with('success', 'Data Report berhasil diperbarui.');
+    } catch (\Exception $e) {
+      DB::rollBack();
+      return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+    }
   }
 }

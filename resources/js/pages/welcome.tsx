@@ -26,11 +26,12 @@ import KecamatanFilter from '@/components/preview/KecamatanFilter';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import SetMapCenter from '@/components/preview/SetMapCenter';
-
+import * as turf from '@turf/turf';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point, polygon } from '@turf/helpers';
 
 import axios from 'axios';
+import LegendControl from '@/components/preview/LegendControl';
 
 type Line = {
   id: number;
@@ -38,6 +39,7 @@ type Line = {
   coordinates: [number, number][];
   type: 'LineString';
   fungsi?: string;
+  status?: string;
   kecamatan?: string | null;
 } | {
   id: number;
@@ -45,15 +47,7 @@ type Line = {
   type: 'Point';
   coordinates: [number, number];
   fungsi?: string;
-  kecamatan?: string | null;
-};
-
-type rawanBanjir = {
-  id: number;
-  name: string;
-  coordinates: [number, number]; // [lng, lat]
-  radius: number;
-  fungsi?: string;
+  status?: string;
   kecamatan?: string | null;
 };
 
@@ -66,7 +60,7 @@ type Props = {
     coordinates: [number, number][][];
   }[];
   selectedKecamatan?: string | null;
-  rawanBanjir: rawanBanjir[];
+
 };
 
 interface BatasKecamatan {
@@ -86,14 +80,30 @@ type FormErrors = {
   [key: string]: string | undefined;
 };
 
+function findNearbyDrainase(
+  pointCoord: [number, number],
+  lines: Line[],
+  thresholdMeters = 20
+): Line[] {
+  const pointFeature = turf.point([pointCoord[1], pointCoord[0]]);
+  const thresholdKm = thresholdMeters / 1000;
 
-export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawanBanjir }: Props) {
+  return lines.filter((line) => {
+    if (line.type !== 'LineString') return false;
+
+    const lineFeature = turf.lineString(line.coordinates);
+    const dist = turf.pointToLineDistance(pointFeature, lineFeature, { units: 'kilometers' });
+
+    return dist <= thresholdKm;
+  });
+}
+
+export default function Welcome({ lines, selectedKecamatan, batasKecamatan }: Props) {
   const { auth } = usePage<SharedData>().props;
 
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
   const [showLines, setShowLines] = useState(false);
-  const [showRawanBanjir, setShowRawanBanjir] = useState(false);
   const [showKecamatan, setShowKecamatan] = useState(false);
 
   const [radiusValue, setRadiusValue] = useState(0);
@@ -117,6 +127,9 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
 
   const [drawType, setDrawType] = useState<'LineString' | 'Polygon' | 'Circle' | 'Point' | null>(null);
+
+  const [nearbyDrainase, setNearbyDrainase] = useState<Line[]>([]);
+  const [selectedDrainaseIds, setSelectedDrainaseIds] = useState<number[]>([]);
 
   interface FileChangeEvent extends React.ChangeEvent<HTMLInputElement> {
     target: HTMLInputElement & EventTarget & {
@@ -207,10 +220,6 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
     ? lines
     : lines.filter(line => line.kecamatan === kecamatan);
 
-  const filteredRawanBanjir = kecamatan === 'all'
-    ? rawanBanjir
-    : rawanBanjir.filter(item => item.kecamatan === kecamatan);
-
   // Data kecamatan unik untuk dropdown (ambil dari lines)
   const kecamatanOptions = Array.from(
     new Set(
@@ -275,6 +284,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
       file,
       type: 'Point',
       coordinates: markerPosition,
+      drainase_id: selectedDrainaseIds,
     };
 
     router.post('/report/create', payload, {
@@ -290,8 +300,6 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         setFile(null);
         setPreview(null);
         setKecamatanForm('all');
-
-        console.log('Berhasil disimpan!');
       },
       onError: (error) => {
         setErrors(error);
@@ -338,12 +346,6 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                   <Link href={route('login')} className="px-4 py-1.5 hover:underline">
                     Log in
                   </Link>
-                  <Link
-                    href={route('register')}
-                    className="rounded-sm border border-[#19140035] px-4 py-1.5 hover:border-[#1915014a] dark:border-[#3E3E3A] dark:hover:border-[#62605b]"
-                  >
-                    Register
-                  </Link>
                 </>
               )}
             </div>
@@ -353,7 +355,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         <header className="container mx-auto px-6 mt-8 text-center">
           <h1 className="text-4xl font-bold mb-4">Sistem Informasi Geografis Jaringan Drainase di Kota Pontianak</h1>
           <p className="text-lg text-gray-600 dark:text-gray-300">
-            Jelajahi sebaran drainase dan area rawan banjir di kota. Gunakan data ini untuk perencanaan, pelaporan, dan edukasi.
+            Jelajahi sebaran drainase di kota. Gunakan data ini untuk perencanaan, pelaporan, dan edukasi.
           </p>
         </header>
         {/* Main Content */}
@@ -382,10 +384,6 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
               <Label htmlFor="showDrainase">Tampilkan jalur Drainase.</Label>
             </div>
             <div className='flex justify-center items-center gap-2 mb-5'>
-              <Checkbox id="showRawanBanjir" checked={showRawanBanjir} onCheckedChange={() => setShowRawanBanjir(!showRawanBanjir)} />
-              <Label htmlFor="showRawanBanjir">Tampilkan Daerah Rawan Banjir.</Label>
-            </div>
-            <div className='flex justify-center items-center gap-2 mb-5'>
               <Checkbox id="showKecamatan" checked={showKecamatan} onCheckedChange={() => setShowKecamatan(!showKecamatan)} />
               <Label htmlFor="showKecamatan">Tampilkan Batas Kecamatan.</Label>
             </div>
@@ -408,6 +406,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
               <CreateMarkerPane />
               <CreateDrainasePane />
               <CreateCirclePane />
+              <LegendControl showEvent={false} />
 
               {userLocation && (
                 <Marker position={userLocation} pane="markerPane" icon={userIcon}>
@@ -442,7 +441,18 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                   radius={radiusValue * 1000}
                   color="blue"
                   fillOpacity={0}
-                />
+                ><Popup>
+                    <div className="max-w-xs p-3 rounded-md shadow bg-green-50 text-green-800 text-sm">
+                      <h3 className="text-green-600 font-semibold text-base mb-1">🚨 Radius Drainase </h3>
+                      <div className="space-y-1">
+                        <p><span className="font-medium">Radius:</span> {radiusValue * 1000}  meter</p>
+                      </div>
+                      <div className="mt-2 text-xs text-green-500 italic">
+                        Drainase disekitar anda.
+                      </div>
+                    </div>
+                  </Popup>
+                </Circle>
               )}
 
 
@@ -484,7 +494,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                   <Polyline
                     key={line.id}
                     positions={latLngCoordinates}
-                    pathOptions={{ color: 'blue', weight: 2 }}
+                    pathOptions={{ color: line.status === 'Terdapat Masalah' ? 'red' : 'blue', weight: 2 }}
                     pane="drainasePane"
                   >
                     <Popup>
@@ -493,6 +503,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                         <div className="space-y-1">
                           <p><span className="font-medium">Fungsi:</span> {line.fungsi || '-'}</p>
                           <p><span className="font-medium">Kecamatan:</span> {line.kecamatan || '-'}</p>
+                          <p><span className="font-medium">Status Drainase:</span> {line.status || '-'}</p>
                         </div>
                         <div className="mt-2 text-xs text-gray-500 italic">
                           Jalur drainase yang terdeteksi
@@ -502,30 +513,6 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                   </Polyline>
                 );
               })}
-
-
-              {showRawanBanjir && filteredRawanBanjir.map((item) => (
-                <Circle
-                  key={item.id}
-                  center={[item.coordinates[1], item.coordinates[0]]}
-                  radius={item.radius}
-                  color="red"
-                  fillOpacity={0.3}
-                  pane="circlePane"
-                >
-                  <Popup>
-                    <div className="max-w-xs p-3 rounded-md shadow bg-red-50 text-red-800 text-sm">
-                      <h3 className="text-red-600 font-semibold text-base mb-1">🚨 {item.name}</h3>
-                      <div className="space-y-1">
-                        <p><span className="font-medium">Radius:</span> {item.radius} meter</p>
-                      </div>
-                      <div className="mt-2 text-xs text-red-500 italic">
-                        Area dengan potensi rawan banjir
-                      </div>
-                    </div>
-                  </Popup>
-                </Circle>
-              ))}
 
 
               {showKecamatan && batasKecamatan.map((kec) => {
@@ -618,7 +605,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
         <section id='report' className="container mx-auto px-6 py-6 bg-gray-50 dark:bg-gray-800">
           <h2 className="text-3xl font-bold mb-2 text-blue-700">📝 Laporan Drainase & Banjir</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Silakan isi formulir berikut untuk membantu kami mendeteksi titik-titik rawan banjir dan kondisi drainase di Pontianak.
+            Silakan isi formulir berikut untuk membantu kami mendeteksi kondisi drainase di Pontianak.
           </p>
 
           <form onSubmit={handleSubmit} >
@@ -670,22 +657,22 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                     <p className="text-red-500 text-sm mt-1">{errors.name}</p>
                   )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-medium mb-1">Lokasi</label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder='Tuliskan alamat laporan'
-                      className="border rounded px-3 py-2 w-full"
-                      required
-                    />
-                    {errors?.location && (
-                      <p className="text-red-500 text-sm mt-1">{errors.location}</p>
-                    )}
-                  </div>
+                <div>
+                  <label className="block font-medium mb-1">Lokasi</label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder='Tuliskan alamat laporan'
+                    className="border rounded px-3 py-2 w-full"
+                    required
+                  />
+                  {errors?.location && (
+                    <p className="text-red-500 text-sm mt-1">{errors.location}</p>
+                  )}
+                </div>
+                {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-medium mb-1">Kategori</label>
                     <input
@@ -701,7 +688,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                       <p className="text-red-500 text-sm mt-1">{errors.category}</p>
                     )}
                   </div>
-                </div>
+                </div> */}
                 <div>
                   <label className="block font-medium mb-1">Deskripsi</label>
                   <textarea
@@ -771,6 +758,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                       <>
                         <Marker
                           position={userLocation}
+                          icon={userIcon}
                           draggable={true}
                           eventHandlers={{
                             dragend: (e) => {
@@ -788,6 +776,9 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                                 coordinates: coords,
                               });
                               setDrawType('Point');
+                              const found = findNearbyDrainase([position.lat, position.lng], lines);
+                              setNearbyDrainase(found);
+                              setSelectedDrainaseIds(found.map((line) => line.id));
                             },
                           }}
                         >
@@ -821,33 +812,40 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                     <CreateMarkerPane />
                     <CreateDrainasePane />
 
+                    {filteredLines.map((line) => {
+                      switch (line.type) {
+                        case 'LineString': {
+                          const latLngCoordinates: [number, number][] = (Array.isArray(line.coordinates)
+                            ? (line.coordinates as [number, number][])
+                            : []
+                          ).map(([lng, lat]) => [lat, lng]);
 
-                    {batasKecamatan.map((kec) => {
-                      if (!Array.isArray(kec.coordinates) || !Array.isArray(kec.coordinates[0])) {
-                        return null;
+                          return (
+                            <Polyline
+                              key={`${line.id}-${selectedDrainaseIds.includes(line.id) ? 'red' : 'blue'}`}
+                              positions={latLngCoordinates}
+                              color={selectedDrainaseIds.includes(line.id) ? 'red' : 'blue'}
+                              pane='drainasePane'
+                            >
+                              <Popup>
+                                <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
+                                  <h3 className="text-blue-600 font-semibold text-base mb-1">🛠️ {line.name}</h3>
+                                  <div className="space-y-1">
+                                    <p><span className="font-medium">Fungsi:</span> {line.fungsi || '-'}</p>
+                                    <p><span className="font-medium">Kecamatan:</span> {line.kecamatan || '-'}</p>
+                                    <p><span className="font-medium">Kecamatan:</span> {line.status || '-'}</p>
+                                  </div>
+                                  <div className="mt-2 text-xs text-gray-500 italic">
+                                    Jalur drainase yang terdeteksi
+                                  </div>
+                                </div>
+                              </Popup>
+                            </Polyline>
+                          );
+                        }
                       }
-
-                      const latlngs: [number, number][][] = kec.coordinates.map(
-                        (ring) =>
-                          ring.map(([lng, lat]) => [lat, lng] as [number, number])
-                      );
-
-                      return (
-                        <Polygon
-                          key={kec.nama}
-                          positions={latlngs}
-                          pathOptions={{
-                            color: getColorForKecamatan(kec.nama),
-                            fillOpacity: 0.1,
-                            weight: 2,
-                          }}
-                        >
-                          <Popup>
-                            <strong>Kecamatan:</strong> {kec.nama}
-                          </Popup>
-                        </Polygon>
-                      );
                     })}
+
 
                   </MapContainer>
                 </div>
@@ -857,10 +855,32 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan, rawa
                   <textarea
                     value={markerPosition ? `${markerPosition[0]}, ${markerPosition[1]}` : ''}
                     readOnly
-                    rows={5.5}
+                    rows={1}
                     className="w-full border rounded px-3 py-2 text-sm text-gray-800"
                   />
                 </div>
+                {nearbyDrainase.length > 0 && (
+                  <div className="mt-4 gap-3">
+                    <h3 className="font-medium mb-2">Drainase Terdekat (dalam 20m):</h3>
+                    {nearbyDrainase.map((line) => (
+                      <div key={line.id} className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          value={line.id}
+                          checked={selectedDrainaseIds.includes(line.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDrainaseIds([...selectedDrainaseIds, line.id]);
+                            } else {
+                              setSelectedDrainaseIds(selectedDrainaseIds.filter(id => id !== line.id));
+                            }
+                          }}
+                        />
+                        <label>{line.name !== '' ? line.name : 'Tidak ada Nama'}</label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className='flex justify-center items-center'>

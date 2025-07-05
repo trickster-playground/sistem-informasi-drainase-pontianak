@@ -11,6 +11,8 @@ import "leaflet-draw/dist/leaflet.draw.css";
 
 import { router } from '@inertiajs/react'
 
+import * as turf from '@turf/turf';
+
 import placeholderImage from '/public/assets/icons/placeholder.jpg';
 
 import CreateDrainasePane from '@/components/preview/CreateDrainasePane';
@@ -19,6 +21,7 @@ import SetMapCenter from '@/components/preview/SetMapCenter';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { point, polygon } from '@turf/helpers';
+import customIconUser from '/public/assets/icons/marker_user.png';
 
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
@@ -80,6 +83,35 @@ interface BatasKecamatan {
   coordinates: [number, number][][];
 }
 
+type FormErrors = {
+  reporterName?: string;
+  reporterContact?: string;
+  name?: string;
+  location?: string;
+  description?: string;
+  category?: string;
+  file?: string;
+  [key: string]: string | undefined;
+};
+
+function findNearbyDrainase(
+  pointCoord: [number, number],
+  lines: Line[],
+  thresholdMeters = 20
+): Line[] {
+  const pointFeature = turf.point([pointCoord[1], pointCoord[0]]);
+  const thresholdKm = thresholdMeters / 1000;
+
+  return lines.filter((line) => {
+    if (line.type !== 'LineString') return false;
+
+    const lineFeature = turf.lineString(line.coordinates);
+    const dist = turf.pointToLineDistance(pointFeature, lineFeature, { units: 'kilometers' });
+
+    return dist <= thresholdKm;
+  });
+}
+
 
 export default function CreateReport({ lines, selectedKecamatan = 'all', kecamatanList, batasKecamatan }: Props) {
   const [name, setName] = useState('');
@@ -89,8 +121,11 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
   const [category, setCategory] = useState('');
   const [file, setFile] = useState<File | null>(null); // Simpan file yang diupload
   const [preview, setPreview] = useState<string | null>(null);
-
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  const [nearbyDrainase, setNearbyDrainase] = useState<Line[]>([]);
+  const [selectedDrainaseIds, setSelectedDrainaseIds] = useState<number[]>([]);
 
 
   interface FileChangeEvent extends React.ChangeEvent<HTMLInputElement> {
@@ -111,7 +146,19 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
     }
   };
 
+  const isMobile = window.innerWidth < 768;
+  const iconSize: [number, number] = isMobile ? [36, 36] : [48, 48];
+
+  const userIcon = L.icon({
+    iconUrl: customIconUser,
+    iconSize,
+    iconAnchor: [iconSize[0] / 2, iconSize[1]],
+    popupAnchor: [0, -iconSize[1]],
+  });
+
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+
+  console.log(userLocation)
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -150,13 +197,12 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
   const [drawType, setDrawType] = useState<'LineString' | 'Polygon' | 'Circle' | 'Point' | null>(null);
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
 
-  
+
 
   // State filter kecamatan, default dari prop backend
   const [kecamatanForm, setKecamatanForm] = useState<string>('');
   const [kecamatan, setKecamatan] = useState<string>(selectedKecamatan ?? 'all');
 
-  console.log(kecamatan)
 
   function getKecamatanNameByCoordinates(
     coords: [number, number],
@@ -274,6 +320,7 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
       description,
       category,
       file,
+      drainase_id: selectedDrainaseIds,
       type: 'Point',
       coordinates: markerPosition,
     };
@@ -288,7 +335,7 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
         console.log('Berhasil disimpan!');
       },
       onError: (errors) => {
-        // Tangani error validasi, dll
+        setErrors(errors);
         console.error('Terjadi error:', errors);
       },
     });
@@ -317,8 +364,11 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                     className="border rounded px-3 py-2 w-full"
                     required
                   />
+                  {errors?.name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.name}</p>
+                  )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block font-medium mb-1">Lokasi</label>
                     <input
@@ -329,8 +379,11 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                       className="border rounded px-3 py-2 w-full"
                       required
                     />
+                    {errors?.location && (
+                      <p className="text-red-500 text-sm mt-1">{errors.location}</p>
+                    )}
                   </div>
-                  <div>
+                  {/* <div>
                     <label className="block font-medium mb-1">Kategori</label>
                     <input
                       type="text"
@@ -338,9 +391,12 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
                       className="border rounded px-3 py-2 w-full"
-                      
+                      required
                     />
-                  </div>
+                    {errors?.category && (
+                      <p className="text-red-500 text-sm mt-1">{errors.category}</p>
+                    )}
+                  </div> */}
                 </div>
                 <div>
                   <label className="block font-medium mb-1">Deskripsi</label>
@@ -350,8 +406,11 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                     rows={2}
                     onChange={(e) => setDescription(e.target.value)}
                     className="border rounded px-3 py-2 w-full"
-                    
+                    required
                   />
+                  {errors?.description && (
+                    <p className="text-red-500 text-sm mt-1">{errors.description}</p>
+                  )}
                 </div>
 
                 {/* Preview Foto dengan placeholder */}
@@ -374,6 +433,9 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                     onChange={handleFileChange}
                     className="border rounded px-3 py-2 w-full cursor-pointer"
                   />
+                  {errors?.file && (
+                    <p className="text-red-500 text-sm mt-1">{errors.file}</p>
+                  )}
                 </div>
               </div>
 
@@ -416,6 +478,7 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                       <>
                         <Marker
                           position={userLocation}
+                          icon={userIcon}
                           draggable={true}
                           eventHandlers={{
                             dragend: (e) => {
@@ -428,6 +491,10 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                                 coordinates: coords,
                               });
                               setDrawType('Point');
+
+                              const found = findNearbyDrainase([position.lat, position.lng], lines);
+                              setNearbyDrainase(found);
+                              setSelectedDrainaseIds(found.map((line) => line.id));
                             },
                           }}
                         >
@@ -447,7 +514,13 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                             ([lng, lat]) => [lat, lng] as [number, number]
                           );
                           return (
-                            <Polyline key={line.id} positions={latLngCoordinates} color="blue" pane='drainasePane'>
+                            <Polyline
+                              key={`${line.id}-${selectedDrainaseIds.includes(line.id) ? 'red' : 'blue'}`}
+                              positions={latLngCoordinates}
+                              color={selectedDrainaseIds.includes(line.id) ? 'red' : 'blue'}
+                              pane='drainasePane'
+                            >
+
                               <Popup><div>
                                 <strong>{line.name}</strong><br />
                                 Fungsi: {line.fungsi}<br />
@@ -523,14 +596,37 @@ export default function CreateReport({ lines, selectedKecamatan = 'all', kecamat
                     className="w-full border rounded px-3 py-2 text-sm text-gray-800"
                   />
                 </div>
-
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  Simpan
-                </button>
+                {nearbyDrainase.length > 0 && (
+                  <div className="mt-4 gap-3">
+                    <h3 className="font-medium mb-2">Drainase Terdekat (dalam 20m):</h3>
+                    {nearbyDrainase.map((line) => (
+                      <div key={line.id} className="flex items-center gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          value={line.id}
+                          checked={selectedDrainaseIds.includes(line.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedDrainaseIds([...selectedDrainaseIds, line.id]);
+                            } else {
+                              setSelectedDrainaseIds(selectedDrainaseIds.filter(id => id !== line.id));
+                            }
+                          }}
+                        />
+                        <label>{line.name !== '' ? line.name : 'Tidak ada Nama'}</label>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            </div>
+            <div className='flex justify-center items-center w-full mx-auto'>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 w-full rounded hover:bg-blue-700"
+              >
+                Simpan
+              </button>
             </div>
           </form>
         </div>

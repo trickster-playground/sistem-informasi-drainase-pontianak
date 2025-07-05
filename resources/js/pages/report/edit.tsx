@@ -18,6 +18,9 @@ import CreateMarkerPane from '@/components/preview/CreateMarkerPane';
 import SetMapCenter from '@/components/preview/SetMapCenter';
 import KecamatanFilter from '@/components/preview/KecamatanFilter';
 
+import customIconUser from '/public/assets/icons/marker_user.png';
+import * as turf from '@turf/turf';
+
 // Breadcrumbs
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -82,10 +85,28 @@ type Props = {
     coordinates: [number, number][][];
   }[];
   point?: Point[];
+  selectedDrainaseIds?: number[]; // tambahkan ini
 };
 
+function findNearbyDrainase(
+  pointCoord: [number, number],
+  lines: Line[],
+  thresholdMeters = 20
+): Line[] {
+  const pointFeature = turf.point([pointCoord[1], pointCoord[0]]);
+  const thresholdKm = thresholdMeters / 1000;
 
-export default function EditReport({ lines, selectedKecamatan = 'all', kecamatanList, batasKecamatan, point }: Props) {
+  return lines.filter((line) => {
+    if (line.type !== 'LineString') return false;
+
+    const lineFeature = turf.lineString(line.coordinates);
+    const dist = turf.pointToLineDistance(pointFeature, lineFeature, { units: 'kilometers' });
+
+    return dist <= thresholdKm;
+  });
+}
+
+export default function EditReport({ lines, selectedKecamatan = 'all', kecamatanList, batasKecamatan, point, selectedDrainaseIds: initialSelectedDrainaseIds }: Props) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
@@ -95,7 +116,20 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
   const [kecamatan, setKecamatan] = useState<string>(point && point.length > 0 ? (point[0].kecamatan ?? 'all') : selectedKecamatan); // Default ke kecamatan dari point atau prop
 
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
+  const [nearbyDrainase, setNearbyDrainase] = useState<Line[]>([]);
+  const [selectedDrainaseIds, setSelectedDrainaseIds] = useState<number[]>(initialSelectedDrainaseIds ?? []);
 
+
+
+  const isMobile = window.innerWidth < 768;
+  const iconSize: [number, number] = isMobile ? [36, 36] : [48, 48];
+
+  const userIcon = L.icon({
+    iconUrl: customIconUser,
+    iconSize,
+    iconAnchor: [iconSize[0] / 2, iconSize[1]],
+    popupAnchor: [0, -iconSize[1]],
+  });
 
   useEffect(() => {
     if (point && point.length > 0) {
@@ -278,6 +312,11 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
       formData.append('file', file);
     }
 
+    // NEW: tambahkan ini
+    selectedDrainaseIds.forEach((id) => {
+      formData.append('selectedDrainaseIds[]', String(id));
+    });
+
     // Tambahkan _method ke formData untuk spoofing PUT
     formData.append('_method', 'put');
 
@@ -328,7 +367,7 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                     required
                   />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block font-medium mb-1">Lokasi</label>
                     <input
@@ -340,7 +379,7 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                       required
                     />
                   </div>
-                  <div>
+                  {/* <div>
                     <label className="block font-medium mb-1">Kategori</label>
                     <input
                       type="text"
@@ -350,7 +389,7 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                       className="border rounded px-3 py-2 w-full"
 
                     />
-                  </div>
+                  </div> */}
                 </div>
                 <div>
                   <label className="block font-medium mb-1">Deskripsi</label>
@@ -427,6 +466,7 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                       <>
                         <Marker
                           position={markerPosition}
+                          icon={userIcon}
                           draggable={true}
                           eventHandlers={{
                             dragend: (e) => {
@@ -439,6 +479,9 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                                 coordinates: coords,
                               });
                               setDrawType('Point');
+                              const found = findNearbyDrainase([position.lat, position.lng], lines);
+                              setNearbyDrainase(found);
+                              setSelectedDrainaseIds(found.map((line) => line.id));
                             },
                           }}
                         >
@@ -458,7 +501,12 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                             ([lng, lat]) => [lat, lng] as [number, number]
                           );
                           return (
-                            <Polyline key={line.id} positions={latLngCoordinates} color="blue" pane='drainasePane'>
+                            <Polyline
+                              key={`${line.id}-${selectedDrainaseIds.includes(line.id) ? 'red' : 'blue'}`}
+                              positions={latLngCoordinates}
+                              color={selectedDrainaseIds.includes(line.id) ? 'red' : 'blue'}
+                              pane='drainasePane'
+                            >
                               <Popup><div>
                                 <strong>{line.name}</strong><br />
                                 Fungsi: {line.fungsi}<br />
@@ -534,14 +582,40 @@ export default function EditReport({ lines, selectedKecamatan = 'all', kecamatan
                     className="w-full border rounded px-3 py-2 text-sm text-gray-800"
                   />
                 </div>
-
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
-                  Simpan
-                </button>
+                {selectedDrainaseIds.length > 0 && (
+                  <div className="mt-4 gap-3">
+                    <h3 className="font-medium mb-2">Drainase Terdekat (dalam 20m):</h3>
+                    {selectedDrainaseIds.map((drainaseId) => {
+                      const drainase = lines.find(line => line.id === drainaseId);
+                      return (
+                        <div key={drainaseId} className="flex items-center gap-2 mb-2">
+                          <input
+                            type="checkbox"
+                            value={drainaseId}
+                            checked={selectedDrainaseIds.includes(drainaseId)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedDrainaseIds([...selectedDrainaseIds, drainaseId]);
+                              } else {
+                                setSelectedDrainaseIds(selectedDrainaseIds.filter(id => id !== drainaseId));
+                              }
+                            }}
+                          />
+                          <label>{drainase && drainase.name !== '' ? drainase.name : 'Tidak ada Nama'}</label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+            </div>
+            <div className='flex justify-center items-center w-full mx-auto'>
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 w-full rounded hover:bg-blue-700"
+              >
+                Simpan
+              </button>
             </div>
           </form>
         </div>

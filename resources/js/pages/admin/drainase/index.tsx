@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Trash, SquarePen } from 'lucide-react';
 import { useState } from 'react';
 import { MapContainer, Polyline, Popup, TileLayer } from 'react-leaflet';
+import LegendControl from '@/components/preview/LegendControl';
 
 const breadcrumbs: BreadcrumbItem[] = [
   {
@@ -52,6 +53,7 @@ type Line =
     type: 'LineString';
     coordinates: [number, number][];
     fungsi?: string;
+    status?: string;
     kecamatan?: string | null;
   }
   | {
@@ -60,6 +62,7 @@ type Line =
     type: 'Point';
     coordinates: [number, number];
     fungsi?: string;
+    status?: string;
     kecamatan?: string | null;
   }
   | {
@@ -71,6 +74,7 @@ type Line =
       radius: number;
     };
     fungsi?: string;
+    status?: string;
     kecamatan?: string | null;
   };
 
@@ -226,6 +230,11 @@ export default function Drainase() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
+            <LegendControl
+              showEvent={false}
+              showUser={false}
+            />
+
             {lines.map((item, idx) => {
               const latLngCoordinates: [number, number][] = (Array.isArray(item.coordinates)
                 ? (item.coordinates as [number, number][])
@@ -235,7 +244,7 @@ export default function Drainase() {
                 <Polyline
                   key={idx}
                   positions={latLngCoordinates}
-                  pathOptions={{ color: 'blue', weight: 2 }}
+                  pathOptions={{ color: item.status === 'Terdapat Masalah' ? 'red' : 'blue', weight: 2 }}
                 >
                   <Popup>
                     <div className="max-w-xs p-3 rounded-md shadow bg-white text-gray-800 text-sm">
@@ -243,6 +252,7 @@ export default function Drainase() {
                       <div className="space-y-1">
                         <p><span className="font-medium">Fungsi:</span> {item.fungsi || '-'}</p>
                         <p><span className="font-medium">Kecamatan:</span> {item.kecamatan || '-'}</p>
+                        <p><span className="font-medium">Status Drainase:</span> {item.status || '-'}</p>
                         <div className='flex gap-2 items-center justify-start'>
                           <Button
                             onClick={() => router.visit(`/admin/drainase/${item.id}/edit`)}

@@ -11,13 +11,13 @@ return new class extends Migration
    */
   public function up(): void
   {
-    Schema::create('rawan_banjirs', function (Blueprint $table) {
+    Schema::create('report_details', function (Blueprint $table) {
       $table->id();
-      $table->string('name')->nullable();
-      $table->foreignId('kecamatan_id')->nullable()->constrained()->onDelete('set null');
-      $table->string('type')->nullable();
+      $table->foreignId('report_id')->constrained('reports')->cascadeOnDelete();
+      $table->foreignId('drainase_id')->constrained('drainase')->cascadeOnDelete();
+      $table->enum('status', ['Pending', 'In Progress', 'Fixed', 'Aborted'])->default('Pending');
       $table->json('coordinates')->nullable();
-      $table->double('radius')->nullable();
+      $table->json('attachments')->nullable();
       $table->timestamps();
     });
   }
@@ -27,6 +27,6 @@ return new class extends Migration
    */
   public function down(): void
   {
-    Schema::dropIfExists('rawan_banjirs');
+    Schema::dropIfExists('report_details');
   }
 };

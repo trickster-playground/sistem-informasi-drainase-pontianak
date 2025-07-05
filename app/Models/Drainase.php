@@ -14,6 +14,7 @@ class Drainase extends Model
   protected $fillable = [
     "name",
     "fungsi",
+    "status",
     "panjang",
     "type",
     "kecamatan_id",
@@ -30,5 +31,10 @@ class Drainase extends Model
   public function kecamatan()
   {
     return $this->belongsTo(Kecamatan::class);
+  }
+
+  public function reports()
+  {
+    return $this->belongsToMany(Report::class, 'report_details');
   }
 }

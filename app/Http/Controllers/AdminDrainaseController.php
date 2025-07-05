@@ -63,6 +63,7 @@ class AdminDrainaseController extends Controller
         'type' => $item->type,
         'coordinates' => $item->coordinates,
         'fungsi' => $item->fungsi,
+        'status' => $item->status,
         'kecamatan' => $item->kecamatan->nama ?? null,
       ];
     });

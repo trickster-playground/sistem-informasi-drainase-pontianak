@@ -18,6 +18,7 @@ return new class extends Migration
       $table->decimal('panjang', 10, 2)->nullable();
       $table->foreignId('kecamatan_id')->nullable()->constrained()->onDelete('set null');
       $table->string('type')->nullable();
+      $table->enum('status', ['Baik', 'Terdapat Masalah'])->default('Baik');
       $table->json('coordinates')->nullable();
       $table->json('properties')->nullable();
       $table->timestamps();

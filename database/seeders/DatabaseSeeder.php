@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
     User::factory()->create([
         'name' => 'Andi Muhammad',
         'email' => 'andi@example.com',
+        'role' => 'Admin',
     ]);
 
     // Drainase::factory()->count(10)->create();
