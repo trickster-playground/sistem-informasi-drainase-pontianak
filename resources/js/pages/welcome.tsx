@@ -367,7 +367,7 @@ export default function Welcome({ lines, selectedKecamatan, batasKecamatan }: Pr
               options={kecamatanOptions}
               onChange={(val) => setKecamatan(val)}
             />
-            <div className='flex justify-center items-center gap-2 mb-5'>
+            <div className='flex justify-center items-center gap-2 mb-5 mr-2'>
               <label htmlFor="radiusInput" className="text-sm font-medium">Radius pencarian (km)</label>
               <input
                 type="number"
